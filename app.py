@@ -1,0 +1,324 @@
+from flask import Flask, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_cors import CORS
+import datetime
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your-secret-key'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///campus_activity.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+CORS(app)
+db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+
+# 数据库模型
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False)
+
+class Activity(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    time = db.Column(db.DateTime, nullable=False)
+    location = db.Column(db.String(100), nullable=False)
+    publisher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    publisher = db.relationship('User', backref=db.backref('activities', lazy=True))
+
+class JoinActivity(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    activity_id = db.Column(db.Integer, db.ForeignKey('activity.id'), nullable=False)
+    join_time = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+class Collection(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    activity_id = db.Column(db.Integer, db.ForeignKey('activity.id'), nullable=False)
+    collect_time = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    activity_id = db.Column(db.Integer, db.ForeignKey('activity.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    comment_time = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    user = db.relationship('User', backref=db.backref('comments', lazy=True))
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# API路由
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    email = data.get('email')
+    
+    if User.query.filter_by(username=username).first():
+        return jsonify({'message': '用户名已存在'}), 400
+    
+    if User.query.filter_by(email=email).first():
+        return jsonify({'message': '邮箱已被注册'}), 400
+    
+    new_user = User(username=username, password=password, email=email)
+    db.session.add(new_user)
+    db.session.commit()
+    
+    return jsonify({'message': '注册成功'}), 200
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    
+    user = User.query.filter_by(username=username).first()
+    if not user or user.password != password:
+        return jsonify({'message': '用户名或密码错误'}), 401
+    
+    login_user(user)
+    return jsonify({'message': '登录成功', 'user': {'id': user.id, 'username': user.username, 'email': user.email}}), 200
+
+@app.route('/api/logout', methods=['POST'])
+@login_required
+def logout():
+    logout_user()
+    return jsonify({'message': '登出成功'}), 200
+
+@app.route('/api/activities', methods=['GET'])
+def get_activities():
+    activities = Activity.query.all()
+    return jsonify([{
+        'id': activity.id,
+        'title': activity.title,
+        'description': activity.description,
+        'time': activity.time.strftime('%Y-%m-%d %H:%M'),
+        'location': activity.location,
+        'publisher': activity.publisher.username
+    } for activity in activities]), 200
+
+@app.route('/api/activities', methods=['POST'])
+@login_required
+def create_activity():
+    data = request.get_json()
+    title = data.get('title')
+    description = data.get('description')
+    time = datetime.datetime.strptime(data.get('time'), '%Y-%m-%dT%H:%M')
+    location = data.get('location')
+    
+    new_activity = Activity(
+        title=title,
+        description=description,
+        time=time,
+        location=location,
+        publisher_id=current_user.id
+    )
+    db.session.add(new_activity)
+    db.session.commit()
+    
+    return jsonify({'message': '活动创建成功', 'activity_id': new_activity.id}), 200
+
+@app.route('/api/activities/<int:id>', methods=['GET'])
+def get_activity(id):
+    activity = Activity.query.get(id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+    
+    comments = Comment.query.filter_by(activity_id=id).all()
+    
+    return jsonify({
+        'id': activity.id,
+        'title': activity.title,
+        'description': activity.description,
+        'time': activity.time.strftime('%Y-%m-%d %H:%M'),
+        'location': activity.location,
+        'publisher': activity.publisher.username,
+        'comments': [{
+            'id': comment.id,
+            'user': comment.user.username,
+            'content': comment.content,
+            'time': comment.comment_time.strftime('%Y-%m-%d %H:%M:%S')
+        } for comment in comments]
+    }), 200
+
+@app.route('/api/activities/<int:id>', methods=['PUT'])
+@login_required
+def update_activity(id):
+    activity = Activity.query.get(id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+    
+    if activity.publisher_id != current_user.id:
+        return jsonify({'message': '无权限修改此活动'}), 403
+    
+    data = request.get_json()
+    activity.title = data.get('title', activity.title)
+    activity.description = data.get('description', activity.description)
+    activity.time = datetime.datetime.strptime(data.get('time'), '%Y-%m-%dT%H:%M')
+    activity.location = data.get('location', activity.location)
+    
+    db.session.commit()
+    return jsonify({'message': '活动更新成功'}), 200
+
+@app.route('/api/activities/<int:id>', methods=['DELETE'])
+@login_required
+def delete_activity(id):
+    activity = Activity.query.get(id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+    
+    if activity.publisher_id != current_user.id:
+        return jsonify({'message': '无权限删除此活动'}), 403
+    
+    db.session.delete(activity)
+    db.session.commit()
+    return jsonify({'message': '活动删除成功'}), 200
+
+@app.route('/api/activities/<int:id>/join', methods=['POST'])
+@login_required
+def join_activity(id):
+    activity = Activity.query.get(id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+    
+    if JoinActivity.query.filter_by(user_id=current_user.id, activity_id=id).first():
+        return jsonify({'message': '已经报名此活动'}), 400
+    
+    new_join = JoinActivity(user_id=current_user.id, activity_id=id)
+    db.session.add(new_join)
+    db.session.commit()
+    
+    return jsonify({'message': '报名成功'}), 200
+
+@app.route('/api/activities/<int:id>/collect', methods=['POST'])
+@login_required
+def collect_activity(id):
+    activity = Activity.query.get(id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+    
+    if Collection.query.filter_by(user_id=current_user.id, activity_id=id).first():
+        return jsonify({'message': '已经收藏此活动'}), 400
+    
+    new_collection = Collection(user_id=current_user.id, activity_id=id)
+    db.session.add(new_collection)
+    db.session.commit()
+    
+    return jsonify({'message': '收藏成功'}), 200
+
+@app.route('/api/activities/<int:id>/uncollect', methods=['POST'])
+@login_required
+def uncollect_activity(id):
+    collection = Collection.query.filter_by(user_id=current_user.id, activity_id=id).first()
+    if not collection:
+        return jsonify({'message': '未收藏此活动'}), 400
+    
+    db.session.delete(collection)
+    db.session.commit()
+    return jsonify({'message': '取消收藏成功'}), 200
+
+@app.route('/api/activities/<int:id>/comment', methods=['POST'])
+@login_required
+def add_comment(id):
+    activity = Activity.query.get(id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+    
+    data = request.get_json()
+    content = data.get('content')
+    
+    new_comment = Comment(user_id=current_user.id, activity_id=id, content=content)
+    db.session.add(new_comment)
+    db.session.commit()
+    
+    return jsonify({'message': '评论成功'}), 200
+
+@app.route('/api/user/activities', methods=['GET'])
+@login_required
+def get_my_activities():
+    activities = Activity.query.filter_by(publisher_id=current_user.id).all()
+    return jsonify([{
+        'id': activity.id,
+        'title': activity.title,
+        'description': activity.description,
+        'time': activity.time.strftime('%Y-%m-%d %H:%M'),
+        'location': activity.location
+    } for activity in activities]), 200
+
+@app.route('/api/user/join', methods=['GET'])
+@login_required
+def get_my_join():
+    joins = JoinActivity.query.filter_by(user_id=current_user.id).all()
+    activities = [Activity.query.get(join.activity_id) for join in joins]
+    return jsonify([{
+        'id': activity.id,
+        'title': activity.title,
+        'description': activity.description,
+        'time': activity.time.strftime('%Y-%m-%d %H:%M'),
+        'location': activity.location
+    } for activity in activities]), 200
+
+@app.route('/api/user/collection', methods=['GET'])
+@login_required
+def get_my_collection():
+    collections = Collection.query.filter_by(user_id=current_user.id).all()
+    activities = [Activity.query.get(collection.activity_id) for collection in collections]
+    return jsonify([{
+        'id': activity.id,
+        'title': activity.title,
+        'description': activity.description,
+        'time': activity.time.strftime('%Y-%m-%d %H:%M'),
+        'location': activity.location
+    } for activity in activities]), 200
+
+@app.route('/api/user/<int:user_id>', methods=['PUT'])
+@login_required
+def update_user_profile(user_id):
+    if user_id != current_user.id:
+        return jsonify({'message': '无权限修改他人信息'}), 403
+    
+    data = request.get_json()
+    email = data.get('email')
+    current_password = data.get('currentPassword')
+    new_password = data.get('newPassword')
+    
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'message': '用户不存在'}), 404
+    
+    if current_password and user.password != current_password:
+        return jsonify({'message': '当前密码错误'}), 401
+    
+    if email:
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user and existing_user.id != user_id:
+            return jsonify({'message': '邮箱已被使用'}), 400
+        user.email = email
+    
+    if new_password:
+        if len(new_password) < 6:
+            return jsonify({'message': '新密码长度不能少于6位'}), 400
+        user.password = new_password
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': '个人信息更新成功',
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email
+        }
+    }), 200
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True)
