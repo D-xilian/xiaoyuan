@@ -41,7 +41,10 @@
             <input type="text" id="activityOrganizer" v-model="form.organizer" required maxlength="50">
             <span v-if="errors.organizer" class="error-message">{{ errors.organizer }}</span>
           </div>
-          <button type="submit" class="btn" :disabled="submitting">{{ submitting ? '提交中...' : (editingActivity ? '保存修改' : '发布') }}</button>
+          <div class="form-buttons">
+            <button type="button" class="btn btn-cancel" v-if="editingActivity" @click="cancelEdit">取消编辑</button>
+            <button type="submit" class="btn" :disabled="submitting">{{ submitting ? '提交中...' : (editingActivity ? '保存修改' : '发布') }}</button>
+          </div>
         </form>
       </div>
       
@@ -97,9 +100,23 @@ export default {
       editingActivity: null
     }
   },
+  watch: {
+    editingActivity(newVal) {
+      // 当编辑完成或取消时，清除URL中的editId参数
+      if (!newVal && this.$route.query.editId) {
+        this.$router.replace({ query: {} })
+      }
+    }
+  },
   mounted() {
     this.checkLoginStatus()
     this.loadActivities()
+    
+    // 检查是否从"我发布的活动"页面跳转回来进行编辑
+    const editId = this.$route.query.editId
+    if (editId) {
+      this.loadActivityForEdit(editId)
+    }
   },
   methods: {
     checkLoginStatus() {
@@ -122,6 +139,19 @@ export default {
         this.activities = []
       } finally {
         this.loading = false
+      }
+    },
+    loadActivityForEdit(activityId) {
+      const activity = this.activities.find(a => a.id === activityId)
+      if (activity) {
+        this.editActivity(activity)
+        // 滚动到表单位置
+        this.$nextTick(() => {
+          const formSection = document.querySelector('.form-section')
+          if (formSection) {
+            formSection.scrollIntoView({ behavior: 'smooth' })
+          }
+        })
       }
     },
     validateForm() {
@@ -181,6 +211,9 @@ export default {
       this.submitting = true
       
       setTimeout(() => {
+        const userStr = localStorage.getItem('user')
+        const user = userStr ? JSON.parse(userStr) : null
+        
         if (this.editingActivity) {
           // 修改活动
           const index = this.activities.findIndex(activity => activity.id === this.editingActivity.id)
@@ -188,7 +221,9 @@ export default {
             this.activities[index] = {
               ...this.form,
               id: this.editingActivity.id,
-              createdAt: this.editingActivity.createdAt
+              createdAt: this.editingActivity.createdAt,
+              publisherId: this.editingActivity.publisherId,
+              publisherName: this.editingActivity.publisherName
             }
           }
           this.editingActivity = null
@@ -197,7 +232,9 @@ export default {
           const newActivity = {
             ...this.form,
             id: Date.now().toString(),
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            publisherId: user ? user.id : null,
+            publisherName: user ? user.username : '匿名用户'
           }
           this.activities.unshift(newActivity)
         }
@@ -219,6 +256,9 @@ export default {
         content: activity.content,
         organizer: activity.organizer
       }
+    },
+    cancelEdit() {
+      this.resetForm()
     },
     resetForm() {
       this.form = {
@@ -322,6 +362,16 @@ nav a {
   display: block;
 }
 
+.form-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.form-buttons .btn {
+  flex: 1;
+}
+
 .btn {
   width: 100%;
   padding: 12px;
@@ -341,6 +391,14 @@ nav a {
 .btn:disabled {
   background-color: #cccccc;
   cursor: not-allowed;
+}
+
+.btn-cancel {
+  background-color: #9e9e9e;
+}
+
+.btn-cancel:hover {
+  background-color: #757575;
 }
 
 /* 活动列表部分样式 */
