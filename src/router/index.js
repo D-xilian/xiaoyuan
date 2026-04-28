@@ -39,6 +39,30 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/activity/register',
+    name: 'ActivityRegistration',
+    component: () => import('../views/ActivityRegistration.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/activity/register/:activityId',
+    name: 'ActivityRegistrationWithId',
+    component: () => import('../views/ActivityRegistration.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/registration/list',
+    name: 'RegistrationList',
+    component: () => import('../views/RegistrationList.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/registration/:id',
+    name: 'RegistrationDetail',
+    component: () => import('../views/RegistrationDetail.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/my-activities',
     name: 'MyActivities',
     component: () => import('../views/MyActivities.vue'),
