@@ -4,6 +4,8 @@
       <h1>校园活动发布平台</h1>
       <nav>
         <router-link to="/">首页</router-link>
+        <router-link to="/activity/register" v-if="isLoggedIn">报名活动</router-link>
+        <router-link to="/registration/list" v-if="isLoggedIn">报名列表</router-link>
         <router-link to="/login" v-if="!isLoggedIn">登录</router-link>
         <router-link to="/register" v-if="!isLoggedIn">注册</router-link>
         <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
