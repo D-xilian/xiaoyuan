@@ -23,6 +23,9 @@
         <div v-else-if="error" class="error">{{ error }}</div>
         <div v-else class="activity-list">
           <div class="activity-item" v-for="activity in activities" :key="activity.id">
+            <div v-if="activity.image_url" class="activity-image">
+              <img :src="activity.image_url" alt="活动图片">
+            </div>
             <h3>{{ activity.title }}</h3>
             <p><strong>时间:</strong> {{ activity.time }}</p>
             <p><strong>地点:</strong> {{ activity.location }}</p>
@@ -146,6 +149,19 @@ nav a {
 .activity-item:hover {
   transform: translateY(-5px);
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.activity-image {
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.activity-image img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 4px;
+  object-fit: contain;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .activity-item h3 {

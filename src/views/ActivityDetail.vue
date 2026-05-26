@@ -15,6 +15,9 @@
       <div v-if="loading" class="loading">加载中...</div>
       <div v-else-if="activity">
         <h2>{{ activity.name || activity.title }}</h2>
+        <div v-if="activity.image_url" class="activity-image">
+          <img :src="activity.image_url" alt="活动图片">
+        </div>
         <div class="activity-info">
           <p><strong>时间:</strong> {{ activity.date || activity.time }}</p>
           <p><strong>地点:</strong> {{ activity.location }}</p>
@@ -268,6 +271,19 @@ nav a {
   text-align: center;
   margin-bottom: 20px;
   color: #333;
+}
+
+.activity-image {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.activity-image img {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  object-fit: contain;
 }
 
 .activity-info {
