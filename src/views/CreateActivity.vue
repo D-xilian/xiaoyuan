@@ -24,6 +24,8 @@
 </template>
 
 <script>
+import { apiPost, isLoggedIn } from '../utils/api'
+
 export default {
   data() {
     return {
@@ -35,12 +37,27 @@ export default {
       }
     }
   },
+  mounted() {
+    if (!isLoggedIn()) {
+      this.$router.push('/login')
+    }
+  },
   methods: {
-    createActivity() {
-      // 创建活动逻辑
-      console.log('创建活动', this.form)
-      // 模拟创建成功
-      this.$router.push('/my-activities')
+    async createActivity() {
+      try {
+        const response = await apiPost('/activities', this.form)
+        
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.message || '创建活动失败')
+        }
+        
+        alert('活动发布成功！')
+        this.$router.push('/my-activities')
+      } catch (error) {
+        console.error('创建活动失败:', error)
+        alert(error.message || '创建活动失败，请稍后重试')
+      }
     }
   }
 }

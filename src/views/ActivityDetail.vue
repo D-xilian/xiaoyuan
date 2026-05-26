@@ -58,6 +58,8 @@
 </template>
 
 <script>
+import { apiGet, apiPost, apiDelete, isLoggedIn, getCurrentUser } from '../utils/api'
+
 export default {
   data() {
     return {
@@ -79,70 +81,122 @@ export default {
       const user = localStorage.getItem('user')
       this.isLoggedIn = !!user
     },
-    loadActivity() {
+    async loadActivity() {
       this.loading = true
       const activityId = this.$route.params.id
       
-      setTimeout(() => {
-        try {
-          const storedActivities = localStorage.getItem('activities')
-          if (storedActivities) {
-            const activities = JSON.parse(storedActivities)
-            this.activity = activities.find(a => a.id === activityId)
-          }
-        } catch (error) {
-          console.error('加载活动详情失败:', error)
-        } finally {
-          this.loading = false
+      try {
+        const response = await apiGet(`/activities/${activityId}`)
+        if (!response.ok) {
+          throw new Error('获取活动详情失败')
         }
-      }, 500)
+        const data = await response.json()
+        this.activity = data
+        this.checkCollectionStatus()
+      } catch (error) {
+        console.error('加载活动详情失败:', error)
+        this.activity = null
+      } finally {
+        this.loading = false
+      }
     },
     loadComments() {
-      this.comments = [
-        {
-          id: 1,
-          user: '张三',
-          content: '期待这次活动！',
-          time: '2026-08-20 10:00'
-        },
-        {
-          id: 2,
-          user: '李四',
-          content: '我会准时参加的',
-          time: '2026-08-21 09:00'
+      if (this.activity && this.activity.comments) {
+        this.comments = this.activity.comments
+      } else {
+        this.comments = []
+      }
+    },
+    checkCollectionStatus() {
+      if (!this.isLoggedIn || !this.activity) return
+      
+      apiGet('/user/collection')
+        .then(response => response.json())
+        .then(data => {
+          this.isCollected = data.some(item => item.id === this.activity.id)
+        })
+        .catch(error => {
+          console.error('检查收藏状态失败:', error)
+        })
+    },
+    async collectActivity() {
+      if (!this.isLoggedIn) {
+        alert('请先登录')
+        this.$router.push('/login')
+        return
+      }
+      
+      try {
+        const endpoint = this.isCollected ? `/activities/${this.activity.id}/uncollect` : `/activities/${this.activity.id}/collect`
+        const response = await apiPost(endpoint, {})
+        
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.message || '操作失败')
         }
-      ]
+        
+        this.isCollected = !this.isCollected
+        alert(this.isCollected ? '收藏成功' : '取消收藏成功')
+      } catch (error) {
+        console.error('收藏操作失败:', error)
+        alert(error.message || '操作失败，请稍后重试')
+      }
     },
-    collectActivity() {
-      this.isCollected = !this.isCollected
-      console.log('收藏活动', this.isCollected)
-    },
-    deleteActivity() {
+    async deleteActivity() {
+      if (!this.isLoggedIn) {
+        alert('请先登录')
+        this.$router.push('/login')
+        return
+      }
+      
       if (confirm('确定要删除这个活动吗？')) {
         try {
-          const storedActivities = localStorage.getItem('activities')
-          if (storedActivities) {
-            let activities = JSON.parse(storedActivities)
-            activities = activities.filter(a => a.id !== this.activity.id)
-            localStorage.setItem('activities', JSON.stringify(activities))
+          const response = await apiDelete(`/activities/${this.activity.id}`)
+          
+          if (!response.ok) {
+            const data = await response.json()
+            throw new Error(data.message || '删除失败')
           }
+          
+          alert('删除成功')
           this.$router.push('/')
         } catch (error) {
           console.error('删除活动失败:', error)
-          alert('删除失败，请稍后重试')
+          alert(error.message || '删除失败，请稍后重试')
         }
       }
     },
-    addComment() {
-      if (this.commentContent) {
-        const newComment = {
-          id: Date.now(),
-          user: '当前用户',
-          content: this.commentContent,
-          time: new Date().toLocaleString()
+    async addComment() {
+      if (!this.isLoggedIn) {
+        alert('请先登录')
+        this.$router.push('/login')
+        return
+      }
+      
+      if (this.commentContent.trim()) {
+        try {
+          const response = await apiPost(`/activities/${this.activity.id}/comment`, {
+            content: this.commentContent
+          })
+          
+          if (!response.ok) {
+            const data = await response.json()
+            throw new Error(data.message || '评论失败')
+          }
+          
+          const newComment = {
+            id: Date.now(),
+            user: getCurrentUser().username,
+            content: this.commentContent,
+            time: new Date().toLocaleString('zh-CN')
+          }
+          this.comments.push(newComment)
+          this.commentContent = ''
+          alert('评论成功')
+        } catch (error) {
+          console.error('发表评论失败:', error)
+          alert(error.message || '评论失败，请稍后重试')
         }
-        this.comments.push(newComment)
-        this.commentContent = ''
       }
     },
     logout() {

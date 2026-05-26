@@ -18,29 +18,84 @@
         <label for="location">活动地点</label>
         <input type="text" id="location" v-model="form.location" required>
       </div>
-      <button type="submit" class="btn">保存修改</button>
+      <button type="submit" class="btn" :disabled="loading">
+        {{ loading ? '保存中...' : '保存修改' }}
+      </button>
     </form>
   </div>
 </template>
 
 <script>
+import { apiGet, apiPut } from '../utils/api'
+
 export default {
   data() {
     return {
       form: {
-        title: '新生见面会',
-        description: '欢迎新生加入我们的大家庭',
-        time: '2026-09-01T14:00',
-        location: '大礼堂'
-      }
+        title: '',
+        description: '',
+        time: '',
+        location: ''
+      },
+      loading: false,
+      error: ''
     }
   },
+  mounted() {
+    this.loadActivity()
+  },
   methods: {
-    updateActivity() {
-      // 更新活动逻辑
-      console.log('更新活动', this.form)
-      // 模拟更新成功
-      this.$router.push(`/activity/${this.$route.params.id}`)
+    async loadActivity() {
+      const activityId = this.$route.params.id
+      if (!activityId) {
+        this.error = '活动ID不存在'
+        return
+      }
+
+      this.loading = true
+      try {
+        const response = await apiGet(`/activities/${activityId}`)
+        if (!response.ok) {
+          throw new Error('获取活动信息失败')
+        }
+        const data = await response.json()
+        
+        this.form.title = data.title
+        this.form.description = data.description
+        this.form.time = data.time.replace(' ', 'T')
+        this.form.location = data.location
+      } catch (error) {
+        console.error('加载活动失败:', error)
+        this.error = '加载活动失败，请稍后重试'
+      } finally {
+        this.loading = false
+      }
+    },
+    async updateActivity() {
+      const activityId = this.$route.params.id
+      if (!activityId) {
+        alert('活动ID不存在')
+        return
+      }
+
+      this.loading = true
+      try {
+        const response = await apiPut(`/activities/${activityId}`, this.form)
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.message || '更新失败')
+        }
+
+        alert('活动更新成功')
+        this.$router.push(`/activity/${activityId}`)
+      } catch (error) {
+        console.error('更新活动失败:', error)
+        alert(error.message || '更新失败，请稍后重试')
+      } finally {
+        this.loading = false
+      }
     }
   }
 }

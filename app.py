@@ -3,15 +3,31 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_cors import CORS
 import datetime
+import functools
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///campus_activity.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-CORS(app)
+CORS(app, supports_credentials=True)
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
+
+def get_user_from_request():
+    user_id = request.headers.get('X-User-ID')
+    if user_id:
+        return User.query.get(int(user_id))
+    return None
+
+def custom_login_required(f):
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_user_from_request()
+        if not user:
+            return jsonify({'message': '请先登录'}), 401
+        return f(user, *args, **kwargs)
+    return decorated_function
 
 # 数据库模型
 class User(UserMixin, db.Model):
@@ -87,9 +103,8 @@ def login():
     return jsonify({'message': '登录成功', 'user': {'id': user.id, 'username': user.username, 'email': user.email}}), 200
 
 @app.route('/api/logout', methods=['POST'])
-@login_required
-def logout():
-    logout_user()
+@custom_login_required
+def logout(user):
     return jsonify({'message': '登出成功'}), 200
 
 @app.route('/api/activities', methods=['GET'])
@@ -105,8 +120,8 @@ def get_activities():
     } for activity in activities]), 200
 
 @app.route('/api/activities', methods=['POST'])
-@login_required
-def create_activity():
+@custom_login_required
+def create_activity(user):
     data = request.get_json()
     title = data.get('title')
     description = data.get('description')
@@ -118,7 +133,7 @@ def create_activity():
         description=description,
         time=time,
         location=location,
-        publisher_id=current_user.id
+        publisher_id=user.id
     )
     db.session.add(new_activity)
     db.session.commit()
@@ -149,13 +164,13 @@ def get_activity(id):
     }), 200
 
 @app.route('/api/activities/<int:id>', methods=['PUT'])
-@login_required
-def update_activity(id):
+@custom_login_required
+def update_activity(user, id):
     activity = Activity.query.get(id)
     if not activity:
         return jsonify({'message': '活动不存在'}), 404
     
-    if activity.publisher_id != current_user.id:
+    if activity.publisher_id != user.id:
         return jsonify({'message': '无权限修改此活动'}), 403
     
     data = request.get_json()
@@ -168,13 +183,13 @@ def update_activity(id):
     return jsonify({'message': '活动更新成功'}), 200
 
 @app.route('/api/activities/<int:id>', methods=['DELETE'])
-@login_required
-def delete_activity(id):
+@custom_login_required
+def delete_activity(user, id):
     activity = Activity.query.get(id)
     if not activity:
         return jsonify({'message': '活动不存在'}), 404
     
-    if activity.publisher_id != current_user.id:
+    if activity.publisher_id != user.id:
         return jsonify({'message': '无权限删除此活动'}), 403
     
     db.session.delete(activity)
@@ -182,41 +197,52 @@ def delete_activity(id):
     return jsonify({'message': '活动删除成功'}), 200
 
 @app.route('/api/activities/<int:id>/join', methods=['POST'])
-@login_required
-def join_activity(id):
+@custom_login_required
+def join_activity(user, id):
     activity = Activity.query.get(id)
     if not activity:
         return jsonify({'message': '活动不存在'}), 404
     
-    if JoinActivity.query.filter_by(user_id=current_user.id, activity_id=id).first():
+    if JoinActivity.query.filter_by(user_id=user.id, activity_id=id).first():
         return jsonify({'message': '已经报名此活动'}), 400
     
-    new_join = JoinActivity(user_id=current_user.id, activity_id=id)
+    new_join = JoinActivity(user_id=user.id, activity_id=id)
     db.session.add(new_join)
     db.session.commit()
     
     return jsonify({'message': '报名成功'}), 200
 
+@app.route('/api/activities/<int:id>/cancel', methods=['POST'])
+@custom_login_required
+def cancel_join_activity(user, id):
+    join = JoinActivity.query.filter_by(user_id=user.id, activity_id=id).first()
+    if not join:
+        return jsonify({'message': '未报名此活动'}), 400
+    
+    db.session.delete(join)
+    db.session.commit()
+    return jsonify({'message': '取消报名成功'}), 200
+
 @app.route('/api/activities/<int:id>/collect', methods=['POST'])
-@login_required
-def collect_activity(id):
+@custom_login_required
+def collect_activity(user, id):
     activity = Activity.query.get(id)
     if not activity:
         return jsonify({'message': '活动不存在'}), 404
     
-    if Collection.query.filter_by(user_id=current_user.id, activity_id=id).first():
+    if Collection.query.filter_by(user_id=user.id, activity_id=id).first():
         return jsonify({'message': '已经收藏此活动'}), 400
     
-    new_collection = Collection(user_id=current_user.id, activity_id=id)
+    new_collection = Collection(user_id=user.id, activity_id=id)
     db.session.add(new_collection)
     db.session.commit()
     
     return jsonify({'message': '收藏成功'}), 200
 
 @app.route('/api/activities/<int:id>/uncollect', methods=['POST'])
-@login_required
-def uncollect_activity(id):
-    collection = Collection.query.filter_by(user_id=current_user.id, activity_id=id).first()
+@custom_login_required
+def uncollect_activity(user, id):
+    collection = Collection.query.filter_by(user_id=user.id, activity_id=id).first()
     if not collection:
         return jsonify({'message': '未收藏此活动'}), 400
     
@@ -225,8 +251,8 @@ def uncollect_activity(id):
     return jsonify({'message': '取消收藏成功'}), 200
 
 @app.route('/api/activities/<int:id>/comment', methods=['POST'])
-@login_required
-def add_comment(id):
+@custom_login_required
+def add_comment(user, id):
     activity = Activity.query.get(id)
     if not activity:
         return jsonify({'message': '活动不存在'}), 404
@@ -234,64 +260,63 @@ def add_comment(id):
     data = request.get_json()
     content = data.get('content')
     
-    new_comment = Comment(user_id=current_user.id, activity_id=id, content=content)
+    new_comment = Comment(user_id=user.id, activity_id=id, content=content)
     db.session.add(new_comment)
     db.session.commit()
     
     return jsonify({'message': '评论成功'}), 200
 
 @app.route('/api/user/activities', methods=['GET'])
-@login_required
-def get_my_activities():
-    activities = Activity.query.filter_by(publisher_id=current_user.id).all()
+@custom_login_required
+def get_my_activities(user):
+    activities = Activity.query.filter_by(publisher_id=user.id).all()
     return jsonify([{
         'id': activity.id,
         'title': activity.title,
         'description': activity.description,
         'time': activity.time.strftime('%Y-%m-%d %H:%M'),
-        'location': activity.location
+        'location': activity.location,
+        'publisher': activity.publisher.username
     } for activity in activities]), 200
 
 @app.route('/api/user/join', methods=['GET'])
-@login_required
-def get_my_join():
-    joins = JoinActivity.query.filter_by(user_id=current_user.id).all()
-    activities = [Activity.query.get(join.activity_id) for join in joins]
+@custom_login_required
+def get_my_join(user):
+    joins = JoinActivity.query.filter_by(user_id=user.id).all()
+    activities = [Activity.query.get(join.activity_id) for join in joins if Activity.query.get(join.activity_id)]
     return jsonify([{
         'id': activity.id,
         'title': activity.title,
         'description': activity.description,
         'time': activity.time.strftime('%Y-%m-%d %H:%M'),
-        'location': activity.location
+        'location': activity.location,
+        'publisher': activity.publisher.username
     } for activity in activities]), 200
 
 @app.route('/api/user/collection', methods=['GET'])
-@login_required
-def get_my_collection():
-    collections = Collection.query.filter_by(user_id=current_user.id).all()
-    activities = [Activity.query.get(collection.activity_id) for collection in collections]
+@custom_login_required
+def get_my_collection(user):
+    collections = Collection.query.filter_by(user_id=user.id).all()
+    activities = [Activity.query.get(collection.activity_id) for collection in collections if Activity.query.get(collection.activity_id)]
     return jsonify([{
         'id': activity.id,
         'title': activity.title,
         'description': activity.description,
         'time': activity.time.strftime('%Y-%m-%d %H:%M'),
-        'location': activity.location
+        'location': activity.location,
+        'publisher': activity.publisher.username
     } for activity in activities]), 200
 
 @app.route('/api/user/<int:user_id>', methods=['PUT'])
-@login_required
-def update_user_profile(user_id):
-    if user_id != current_user.id:
+@custom_login_required
+def update_user_profile(user, user_id):
+    if user_id != user.id:
         return jsonify({'message': '无权限修改他人信息'}), 403
     
     data = request.get_json()
     email = data.get('email')
     current_password = data.get('currentPassword')
     new_password = data.get('newPassword')
-    
-    user = User.query.get(user_id)
-    if not user:
-        return jsonify({'message': '用户不存在'}), 404
     
     if current_password and user.password != current_password:
         return jsonify({'message': '当前密码错误'}), 401
