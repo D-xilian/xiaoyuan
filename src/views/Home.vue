@@ -24,7 +24,7 @@
         <div v-else class="activity-list">
           <div class="activity-item" v-for="activity in activities" :key="activity.id">
             <div v-if="activity.image_url" class="activity-image">
-              <img :src="activity.image_url" alt="活动图片">
+              <img :src="activity.image_url" :alt="activity.title">
             </div>
             <h3>{{ activity.title }}</h3>
             <p><strong>时间:</strong> {{ activity.time }}</p>
@@ -144,6 +144,20 @@ nav a {
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.activity-image {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  border-radius: 8px 8px 0 0;
+  margin: -20px -20px 15px -20px;
+}
+
+.activity-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .activity-item:hover {

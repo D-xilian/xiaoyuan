@@ -274,16 +274,17 @@ nav a {
 }
 
 .activity-image {
+  width: 100%;
+  max-height: 400px;
+  overflow: hidden;
+  border-radius: 8px;
   margin-bottom: 20px;
-  text-align: center;
 }
 
 .activity-image img {
-  max-width: 100%;
-  max-height: 400px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .activity-info {

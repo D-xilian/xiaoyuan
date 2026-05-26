@@ -12,13 +12,17 @@ app.config['SECRET_KEY'] = 'your-secret-key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///campus_activity.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 CORS(app, supports_credentials=True)
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 def get_user_from_request():
     user_id = request.headers.get('X-User-ID')
@@ -77,28 +81,6 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 # API路由
-@app.route('/api/upload', methods=['POST'])
-@custom_login_required
-def upload_file(user):
-    if 'file' not in request.files:
-        return jsonify({'message': '没有文件被上传'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'message': '没有选择文件'}), 400
-    
-    if file:
-        filename = str(uuid.uuid4()) + os.path.splitext(file.filename)[1]
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        
-        file_url = f'http://localhost:5000/api/uploads/{filename}'
-        return jsonify({'message': '上传成功', 'file_url': file_url}), 200
-
-@app.route('/api/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -171,6 +153,30 @@ def create_activity(user):
     db.session.commit()
     
     return jsonify({'message': '活动创建成功', 'activity_id': new_activity.id}), 200
+
+@app.route('/api/upload', methods=['POST'])
+@custom_login_required
+def upload_file(user):
+    if 'file' not in request.files:
+        return jsonify({'message': '没有文件部分'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'message': '没有选择文件'}), 400
+    
+    if file and allowed_file(file.filename):
+        filename = str(uuid.uuid4()) + '.' + file.filename.rsplit('.', 1)[1].lower()
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        file_url = f'http://localhost:5000/uploads/{filename}'
+        return jsonify({'message': '文件上传成功', 'file_url': file_url}), 200
+    
+    return jsonify({'message': '不支持的文件类型'}), 400
+
+@app.route('/api/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/api/activities/<int:id>', methods=['GET'])
 def get_activity(id):

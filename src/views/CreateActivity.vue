@@ -34,7 +34,7 @@
 </template>
 
 <script>
-import { apiPost, isLoggedIn } from '../utils/api'
+import { apiPost, isLoggedIn, getAuthHeaders } from '../utils/api'
 
 export default {
   data() {
