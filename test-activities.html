@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>测试活动列表</title>
+</head>
+<body>
+    <h1>测试活动列表</h1>
+    <button onclick="loadActivities()">加载活动列表</button>
+    <div id="result"></div>
+
+    <script>
+        async function loadActivities() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '加载中...';
+
+            try {
+                const response = await fetch('http://localhost:5000/api/activities');
+                const data = await response.json();
+
+                resultDiv.innerHTML = `
+                    <h2>响应状态: ${response.status}</h2>
+                    <h3>活动数量: ${data.length}</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">错误: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

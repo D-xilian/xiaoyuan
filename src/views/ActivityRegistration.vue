@@ -4,6 +4,8 @@
       <h1>校园活动报名</h1>
       <nav>
         <router-link to="/">首页</router-link>
+        <router-link to="/activity/create" v-if="isLoggedIn">创建活动</router-link>
+        <router-link to="/my-activities" v-if="isLoggedIn">我发布的活动</router-link>
         <router-link to="/my-join" v-if="isLoggedIn">我的报名</router-link>
         <router-link to="/login" v-if="!isLoggedIn">登录</router-link>
         <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
@@ -70,13 +72,15 @@
             
             <div class="form-group">
               <label for="activity">报名项目 <span class="required">*</span></label>
-              <select id="activity" v-model="form.activity" :class="{ error: errors.activity }">
-                <option value="">请选择报名项目</option>
+              <select id="activity" v-model="form.activity" :class="{ error: errors.activity }" :disabled="!!activityId">
+                <option :value="null">请选择您发布的活动</option>
                 <option v-for="act in availableActivities" :key="act.id" :value="act.id">
-                  {{ act.name }}
+                  {{ act.title }}
                 </option>
               </select>
               <span v-if="errors.activity" class="error-message">{{ errors.activity }}</span>
+              <small v-if="availableActivities.length === 0" style="color: #999;">您还没有发布任何活动</small>
+              <small v-else style="color: #999;">共 {{ availableActivities.length }} 个您发布的活动</small>
             </div>
             
             <div class="form-group">
@@ -145,17 +149,20 @@
 </template>
 
 <script>
+import { apiGet, apiPost, isLoggedIn, getCurrentUser } from '../utils/api'
+
 export default {
   name: 'ActivityRegistration',
   data() {
     return {
       isLoggedIn: false,
       activityName: '',
+      activityId: null,
       form: {
         name: '',
         phone: '',
         email: '',
-        activity: '',
+        activity: null,
         department: '',
         studentId: '',
         introduction: '',
@@ -180,43 +187,47 @@ export default {
     this.loadAvailableActivities()
     this.loadFormData()
     
-    // 获取URL参数中的活动ID
     const activityId = this.$route.params.activityId
     if (activityId) {
-      this.form.activity = activityId
+      this.activityId = activityId
+      this.form.activity = parseInt(activityId)
     }
   },
   methods: {
     checkLoginStatus() {
-      const user = localStorage.getItem('user')
-      this.isLoggedIn = !!user
+      this.isLoggedIn = isLoggedIn()
       if (!this.isLoggedIn) {
         this.$router.push('/login')
       }
     },
-    loadAvailableActivities() {
-      // 从本地存储加载活动列表
-      const storedActivities = localStorage.getItem('activities')
-      if (storedActivities) {
-        this.availableActivities = JSON.parse(storedActivities).filter(act => 
-          new Date(act.date) >= new Date().setHours(0, 0, 0, 0)
-        )
+    async loadAvailableActivities() {
+      try {
+        const response = await apiGet('/user/activities')
+        if (!response.ok) {
+          if (response.status === 401) {
+            this.$router.push('/login')
+            return
+          }
+          throw new Error('获取活动列表失败')
+        }
+        const data = await response.json()
+        this.availableActivities = data
         
-        // 如果有活动ID参数，设置活动名称
         if (this.form.activity) {
-          const activity = this.availableActivities.find(a => a.id === this.form.activity)
+          const activity = this.availableActivities.find(a => a.id === parseInt(this.form.activity))
           if (activity) {
-            this.activityName = activity.name
+            this.activityName = activity.title
           }
         }
+      } catch (error) {
+        console.error('加载活动列表失败:', error)
+        this.availableActivities = []
       }
     },
     loadFormData() {
-      // 加载本地暂存的表单数据
       const storedForm = localStorage.getItem('registrationForm')
       if (storedForm && !this.submittedOnce) {
         const savedForm = JSON.parse(storedForm)
-        // 只恢复未提交过的表单数据
         Object.keys(savedForm).forEach(key => {
           if (this.form[key] !== undefined && !this.form[key]) {
             this.form[key] = savedForm[key]
@@ -225,7 +236,6 @@ export default {
       }
     },
     saveFormData() {
-      // 本地暂存表单数据
       localStorage.setItem('registrationForm', JSON.stringify(this.form))
     },
     validateForm() {
@@ -239,7 +249,6 @@ export default {
         agreeTerms: ''
       }
       
-      // 姓名验证
       if (!this.form.name.trim()) {
         this.errors.name = '请输入您的姓名'
         isValid = false
@@ -248,7 +257,6 @@ export default {
         isValid = false
       }
       
-      // 手机号验证
       if (!this.form.phone.trim()) {
         this.errors.phone = '请输入您的手机号码'
         isValid = false
@@ -257,19 +265,16 @@ export default {
         isValid = false
       }
       
-      // 邮箱验证（可选字段）
       if (this.form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email)) {
         this.errors.email = '请输入有效的邮箱地址'
         isValid = false
       }
       
-      // 报名项目验证
       if (!this.form.activity) {
         this.errors.activity = '请选择报名项目'
         isValid = false
       }
       
-      // 个人简介验证
       if (!this.form.introduction.trim()) {
         this.errors.introduction = '请填写个人简介'
         isValid = false
@@ -281,7 +286,6 @@ export default {
         isValid = false
       }
       
-      // 条款同意验证
       if (!this.form.agreeTerms) {
         this.errors.agreeTerms = '请同意活动条款和隐私政策'
         isValid = false
@@ -290,7 +294,6 @@ export default {
       return isValid
     },
     async submitForm() {
-      // 防重复提交
       if (this.submitting) return
       
       if (!this.validateForm()) {
@@ -300,33 +303,21 @@ export default {
       this.submitting = true
       
       try {
-        // 模拟API提交
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        const response = await apiPost(`/activities/${this.form.activity}/join`, {})
         
-        // 创建报名记录
-        const registration = {
-          id: Date.now().toString(),
-          ...this.form,
-          activityName: this.availableActivities.find(a => a.id === this.form.activity)?.name || '',
-          createdAt: new Date().toISOString(),
-          status: 'pending'
+        const data = await response.json()
+        
+        if (!response.ok) {
+          throw new Error(data.message || '报名失败')
         }
         
-        // 保存到本地存储
-        const registrations = JSON.parse(localStorage.getItem('registrations') || '[]')
-        registrations.push(registration)
-        localStorage.setItem('registrations', JSON.stringify(registrations))
-        
-        // 清除本地暂存的表单数据
         localStorage.removeItem('registrationForm')
         this.submittedOnce = true
-        
-        // 显示成功提示
         this.submitSuccess = true
         
       } catch (error) {
         console.error('报名提交失败:', error)
-        alert('报名提交失败，请稍后重试')
+        alert(error.message || '报名提交失败，请稍后重试')
       } finally {
         this.submitting = false
       }
@@ -336,7 +327,7 @@ export default {
         name: '',
         phone: '',
         email: '',
-        activity: '',
+        activity: this.activityId || null,
         department: '',
         studentId: '',
         introduction: '',
@@ -356,7 +347,6 @@ export default {
     form: {
       deep: true,
       handler() {
-        // 实时保存表单数据到本地存储
         if (!this.submitSuccess) {
           this.saveFormData()
         }
