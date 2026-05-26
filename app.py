@@ -385,7 +385,14 @@ def update_user_profile(user, user_id):
         }
     }), 200
 
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_static(path):
+    if path == '' or not os.path.exists(os.path.join('dist', path)):
+        return send_from_directory('dist', 'index.html')
+    return send_from_directory('dist', path)
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)

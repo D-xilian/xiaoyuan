@@ -4,8 +4,15 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   server: {
-    https: false, // 强制关闭 HTTPS
-    port: 5173,   // 确认端口是你用的
-    strictPort: true
+    https: false,
+    host: '0.0.0.0',
+    port: 5174,
+    strictPort: false,
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:5000',
+        changeOrigin: true
+      }
+    }
   }
 })
