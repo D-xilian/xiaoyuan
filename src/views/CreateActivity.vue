@@ -18,13 +18,23 @@
         <label for="location">活动地点</label>
         <input type="text" id="location" v-model="form.location" required>
       </div>
-      <button type="submit" class="btn">发布活动</button>
+      <div class="form-group">
+        <label for="image">活动图片</label>
+        <input type="file" id="image" @change="handleImageUpload" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+        <div v-if="previewImage" class="image-preview">
+          <img :src="previewImage" alt="预览图片">
+          <button type="button" class="btn-remove" @click="removeImage">移除图片</button>
+        </div>
+        <p v-if="uploading" class="upload-status">上传中...</p>
+        <p v-if="uploadError" class="upload-error">{{ uploadError }}</p>
+      </div>
+      <button type="submit" class="btn" :disabled="submitting || uploading">{{ submitting ? '发布中...' : '发布活动' }}</button>
     </form>
   </div>
 </template>
 
 <script>
-import { apiPost, isLoggedIn } from '../utils/api'
+import { apiPost, isLoggedIn, getAuthHeaders } from '../utils/api'
 
 export default {
   data() {
@@ -33,8 +43,13 @@ export default {
         title: '',
         description: '',
         time: '',
-        location: ''
-      }
+        location: '',
+        image_url: ''
+      },
+      previewImage: '',
+      uploading: false,
+      uploadError: '',
+      submitting: false
     }
   },
   mounted() {
@@ -43,6 +58,50 @@ export default {
     }
   },
   methods: {
+    async handleImageUpload(event) {
+      const file = event.target.files[0]
+      if (!file) return
+
+      if (file.size > 16 * 1024 * 1024) {
+        this.uploadError = '文件大小不能超过16MB'
+        return
+      }
+
+      this.uploading = true
+      this.uploadError = ''
+
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const response = await fetch('http://localhost:5000/api/upload', {
+          method: 'POST',
+          headers: {
+            'X-User-ID': JSON.parse(localStorage.getItem('user')).id.toString()
+          },
+          body: formData
+        })
+
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.message || '上传失败')
+        }
+
+        const data = await response.json()
+        this.form.image_url = data.file_url
+        this.previewImage = data.file_url
+      } catch (error) {
+        console.error('图片上传失败:', error)
+        this.uploadError = error.message || '图片上传失败，请稍后重试'
+      } finally {
+        this.uploading = false
+      }
+    },
+    removeImage() {
+      this.form.image_url = ''
+      this.previewImage = ''
+      document.getElementById('image').value = ''
+    },
     async createActivity() {
       try {
         const response = await apiPost('/activities', this.form)
@@ -115,5 +174,51 @@ export default {
 
 .btn:hover {
   background-color: #45a049;
+}
+
+.image-preview {
+  margin-top: 10px;
+  position: relative;
+}
+
+.image-preview img {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+.btn-remove {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-remove:hover {
+  background-color: #d32f2f;
+}
+
+.upload-status {
+  color: #4CAF50;
+  font-size: 14px;
+  margin-top: 5px;
+}
+
+.upload-error {
+  color: #f44336;
+  font-size: 14px;
+  margin-top: 5px;
+}
+
+.btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
 }
 </style>

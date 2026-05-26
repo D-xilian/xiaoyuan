@@ -1,18 +1,28 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_cors import CORS
 import datetime
 import functools
+import os
+import uuid
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///campus_activity.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 CORS(app, supports_credentials=True)
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
+
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 def get_user_from_request():
     user_id = request.headers.get('X-User-ID')
@@ -42,6 +52,7 @@ class Activity(db.Model):
     description = db.Column(db.Text, nullable=False)
     time = db.Column(db.DateTime, nullable=False)
     location = db.Column(db.String(100), nullable=False)
+    image_url = db.Column(db.String(500), nullable=True)
     publisher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     publisher = db.relationship('User', backref=db.backref('activities', lazy=True))
 
@@ -116,6 +127,7 @@ def get_activities():
         'description': activity.description,
         'time': activity.time.strftime('%Y-%m-%d %H:%M'),
         'location': activity.location,
+        'image_url': activity.image_url,
         'publisher': activity.publisher.username
     } for activity in activities]), 200
 
@@ -127,18 +139,40 @@ def create_activity(user):
     description = data.get('description')
     time = datetime.datetime.strptime(data.get('time'), '%Y-%m-%dT%H:%M')
     location = data.get('location')
+    image_url = data.get('image_url')
     
     new_activity = Activity(
         title=title,
         description=description,
         time=time,
         location=location,
+        image_url=image_url,
         publisher_id=user.id
     )
     db.session.add(new_activity)
     db.session.commit()
     
     return jsonify({'message': '活动创建成功', 'activity_id': new_activity.id}), 200
+
+@app.route('/api/upload', methods=['POST'])
+@custom_login_required
+def upload_file(user):
+    if 'file' not in request.files:
+        return jsonify({'message': '没有文件部分'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'message': '没有选择文件'}), 400
+    
+    if file and allowed_file(file.filename):
+        filename = str(uuid.uuid4()) + '.' + file.filename.rsplit('.', 1)[1].lower()
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        
+        file_url = f'http://localhost:5000/uploads/{filename}'
+        return jsonify({'message': '文件上传成功', 'file_url': file_url}), 200
+    
+    return jsonify({'message': '不支持的文件类型'}), 400
 
 @app.route('/api/activities/<int:id>', methods=['GET'])
 def get_activity(id):
@@ -154,6 +188,7 @@ def get_activity(id):
         'description': activity.description,
         'time': activity.time.strftime('%Y-%m-%d %H:%M'),
         'location': activity.location,
+        'image_url': activity.image_url,
         'publisher': activity.publisher.username,
         'comments': [{
             'id': comment.id,
@@ -276,6 +311,7 @@ def get_my_activities(user):
         'description': activity.description,
         'time': activity.time.strftime('%Y-%m-%d %H:%M'),
         'location': activity.location,
+        'image_url': activity.image_url,
         'publisher': activity.publisher.username
     } for activity in activities]), 200
 
@@ -342,6 +378,10 @@ def update_user_profile(user, user_id):
             'email': user.email
         }
     }), 200
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == '__main__':
     with app.app_context():
