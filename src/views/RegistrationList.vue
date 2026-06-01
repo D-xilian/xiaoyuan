@@ -126,6 +126,8 @@
 </template>
 
 <script>
+import { apiGet, getCurrentUser, isLoggedIn } from '../utils/api'
+
 export default {
   name: 'RegistrationList',
   data() {
@@ -144,30 +146,26 @@ export default {
   computed: {
     filteredRegistrations() {
       let result = [...this.registrations]
-      
-      // 搜索筛选
+
       if (this.searchKeyword.trim()) {
         const keyword = this.searchKeyword.toLowerCase()
-        result = result.filter(r => 
+        result = result.filter(r =>
           r.name.toLowerCase().includes(keyword) ||
           r.phone.includes(keyword) ||
           (r.activityName && r.activityName.toLowerCase().includes(keyword))
         )
       }
-      
-      // 活动筛选
+
       if (this.filterActivity) {
         result = result.filter(r => r.activity === this.filterActivity)
       }
-      
-      // 状态筛选
+
       if (this.filterStatus) {
         result = result.filter(r => r.status === this.filterStatus)
       }
-      
-      // 按报名时间倒序排序
+
       result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      
+
       return result
     },
     paginatedRegistrations() {
@@ -198,31 +196,57 @@ export default {
   },
   methods: {
     checkLoginStatus() {
-      const user = localStorage.getItem('user')
-      this.isLoggedIn = !!user
+      this.isLoggedIn = isLoggedIn()
       if (!this.isLoggedIn) {
         this.$router.push('/login')
       }
     },
-    loadRegistrations() {
+
+    async loadRegistrations() {
       this.loading = true
       try {
-        // 模拟加载延迟
-        setTimeout(() => {
-          const storedRegistrations = localStorage.getItem('registrations')
-          this.registrations = storedRegistrations ? JSON.parse(storedRegistrations) : []
-          this.loading = false
-        }, 500)
+        const response = await apiGet('/registrations')
+        if (response.ok) {
+          const data = await response.json()
+          this.registrations = data.map(r => ({
+            id: r.id,
+            name: r.username,
+            phone: r.email || '',
+            activity: r.activity_id,
+            activityName: r.activity_title,
+            status: 'approved',
+            createdAt: r.join_time
+          }))
+        } else {
+          console.error('加载报名记录失败:', response.status)
+          this.registrations = []
+        }
       } catch (error) {
         console.error('加载报名记录失败:', error)
         this.registrations = []
+      } finally {
         this.loading = false
       }
     },
-    loadActivities() {
-      const storedActivities = localStorage.getItem('activities')
-      this.availableActivities = storedActivities ? JSON.parse(storedActivities) : []
+
+    async loadActivities() {
+      try {
+        const response = await apiGet('/user/activities')
+        if (response.ok) {
+          const data = await response.json()
+          this.availableActivities = data.map(a => ({
+            id: a.id,
+            name: a.title
+          }))
+        } else {
+          this.availableActivities = []
+        }
+      } catch (error) {
+        console.error('加载活动列表失败:', error)
+        this.availableActivities = []
+      }
     },
+
     handleSearch() {
       this.currentPage = 1
     },

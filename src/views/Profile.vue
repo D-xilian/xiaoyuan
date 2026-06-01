@@ -278,6 +278,8 @@
 </template>
 
 <script>
+import { apiGet, apiDelete, getCurrentUser } from '../utils/api'
+
 export default {
   name: 'Profile',
   data() {
@@ -293,22 +295,22 @@ export default {
       loading: false,
       error: '',
       success: '',
-      
+
       // 活动列表数据
       myActivities: [],
       myRegistrations: [],
       allActivities: [],
       isLoading: false,
-      
+
       // Tab切换
       activeTab: 'published',
-      
+
       // 我发布的活动分页和搜索
       publishedSearch: '',
       publishedStatusFilter: '',
       publishedCurrentPage: 1,
       publishedPageSize: 5,
-      
+
       // 我报名的活动分页和搜索
       registeredSearch: '',
       registeredStatusFilter: '',
@@ -320,56 +322,56 @@ export default {
     // 我发布的活动过滤结果
     filteredPublishedActivities() {
       let result = [...this.myActivities]
-      
+
       if (this.publishedSearch) {
         const keyword = this.publishedSearch.toLowerCase()
-        result = result.filter(a => 
+        result = result.filter(a =>
           (a.name || a.title)?.toLowerCase().includes(keyword)
         )
       }
-      
+
       if (this.publishedStatusFilter) {
         result = result.filter(a => this.getActivityStatus(a) === this.publishedStatusFilter)
       }
-      
-      return result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+      return result.sort((a, b) => new Date(b.createdAt || b.time) - new Date(a.createdAt || a.time))
     },
-    
+
     paginatedPublishedActivities() {
       const start = (this.publishedCurrentPage - 1) * this.publishedPageSize
       const end = start + this.publishedPageSize
       return this.filteredPublishedActivities.slice(start, end)
     },
-    
+
     publishedTotalPages() {
       return Math.ceil(this.filteredPublishedActivities.length / this.publishedPageSize)
     },
-    
+
     // 我报名的活动过滤结果
     filteredRegistrations() {
       let result = [...this.myRegistrations]
-      
+
       if (this.registeredSearch) {
         const keyword = this.registeredSearch.toLowerCase()
-        result = result.filter(r => 
+        result = result.filter(r =>
           r.activityName?.toLowerCase().includes(keyword) ||
           r.name?.toLowerCase().includes(keyword)
         )
       }
-      
+
       if (this.registeredStatusFilter) {
         result = result.filter(r => r.status === this.registeredStatusFilter)
       }
-      
-      return result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+      return result.sort((a, b) => new Date(b.createdAt || b.time) - new Date(a.createdAt || a.time))
     },
-    
+
     paginatedRegistrations() {
       const start = (this.registeredCurrentPage - 1) * this.registeredPageSize
       const end = start + this.registeredPageSize
       return this.filteredRegistrations.slice(start, end)
     },
-    
+
     registeredTotalPages() {
       return Math.ceil(this.filteredRegistrations.length / this.registeredPageSize)
     }
@@ -381,34 +383,65 @@ export default {
   },
   methods: {
     loadUser() {
-      const userStr = localStorage.getItem('user')
-      if (userStr) {
-        this.user = JSON.parse(userStr)
+      this.user = getCurrentUser()
+    },
+
+    async loadActivities() {
+      this.isLoading = true
+      try {
+        const response = await apiGet('/user/activities')
+        if (response.ok) {
+          const data = await response.json()
+          this.myActivities = data.map(activity => ({
+            id: activity.id,
+            title: activity.title,
+            name: activity.title,
+            description: activity.description,
+            content: activity.description,
+            date: activity.time,
+            time: activity.time,
+            location: activity.location,
+            organizer: activity.publisher,
+            publisher: activity.publisher,
+            image_url: activity.image_url,
+            createdAt: activity.created_at || activity.time
+          }))
+          this.allActivities = [...this.myActivities]
+        } else {
+          console.error('加载活动失败:', response.status)
+          this.myActivities = []
+          this.allActivities = []
+        }
+      } catch (error) {
+        console.error('加载活动失败:', error)
+        this.myActivities = []
+        this.allActivities = []
+      } finally {
+        this.isLoading = false
       }
     },
-    
-    loadActivities() {
-      this.isLoading = true
-      setTimeout(() => {
-        try {
-          const storedActivities = localStorage.getItem('activities')
-          this.allActivities = storedActivities ? JSON.parse(storedActivities) : []
-          // 当前用户发布的活动（模拟：所有活动都显示为当前用户发布）
-          this.myActivities = [...this.allActivities]
-        } catch (error) {
-          console.error('加载活动失败:', error)
-          this.myActivities = []
-        } finally {
-          this.isLoading = false
-        }
-      }, 500)
-    },
-    
-    loadRegistrations() {
+
+    async loadRegistrations() {
       try {
-        const storedRegistrations = localStorage.getItem('registrations')
-        // 当前用户的报名记录（模拟：所有报名都显示为当前用户）
-        this.myRegistrations = storedRegistrations ? JSON.parse(storedRegistrations) : []
+        const response = await apiGet('/user/join')
+        if (response.ok) {
+          const data = await response.json()
+          this.myRegistrations = data.map(activity => ({
+            id: activity.id,
+            activity: activity.id,
+            activityName: activity.title,
+            name: activity.publisher || '未知',
+            phone: '',
+            introduction: activity.description,
+            status: 'approved',
+            createdAt: activity.time,
+            date: activity.time,
+            location: activity.location
+          }))
+        } else {
+          console.error('加载报名记录失败:', response.status)
+          this.myRegistrations = []
+        }
       } catch (error) {
         console.error('加载报名记录失败:', error)
         this.myRegistrations = []
