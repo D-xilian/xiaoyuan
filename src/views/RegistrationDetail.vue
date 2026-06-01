@@ -135,6 +135,8 @@
 </template>
 
 <script>
+import { apiGet, apiPut, isLoggedIn } from '../utils/api'
+
 export default {
   name: 'RegistrationDetail',
   data() {
@@ -151,30 +153,44 @@ export default {
   },
   methods: {
     checkLoginStatus() {
-      const user = localStorage.getItem('user')
-      this.isLoggedIn = !!user
+      this.isLoggedIn = isLoggedIn()
       if (!this.isLoggedIn) {
         this.$router.push('/login')
       }
     },
-    loadRegistration() {
+
+    async loadRegistration() {
       this.loading = true
       const registrationId = this.$route.params.id
-      
-      setTimeout(() => {
-        try {
-          const storedRegistrations = localStorage.getItem('registrations')
-          if (storedRegistrations) {
-            const registrations = JSON.parse(storedRegistrations)
-            this.registration = registrations.find(r => r.id === registrationId)
+
+      try {
+        const response = await apiGet(`/registration/${registrationId}`)
+        if (response.ok) {
+          const data = await response.json()
+          this.registration = {
+            id: data.id,
+            name: data.username,
+            phone: data.email || '',
+            email: data.email,
+            activity: data.activity_id,
+            activityName: data.activity_title,
+            status: 'approved',
+            createdAt: data.join_time
           }
-        } catch (error) {
-          console.error('加载报名详情失败:', error)
-        } finally {
-          this.loading = false
+        } else if (response.status === 404) {
+          this.registration = null
+        } else {
+          console.error('加载报名详情失败:', response.status)
+          this.registration = null
         }
-      }, 500)
+      } catch (error) {
+        console.error('加载报名详情失败:', error)
+        this.registration = null
+      } finally {
+        this.loading = false
+      }
     },
+
     getStatusText(status) {
       const statusMap = {
         pending: '待审核',
@@ -197,29 +213,17 @@ export default {
     },
     async updateStatus(newStatus) {
       if (this.updating) return
-      
+
       this.updating = true
-      
+
       try {
-        // 模拟API请求延迟
-        await new Promise(resolve => setTimeout(resolve, 800))
-        
-        // 更新状态
-        const storedRegistrations = localStorage.getItem('registrations')
-        if (storedRegistrations) {
-          let registrations = JSON.parse(storedRegistrations)
-          registrations = registrations.map(r => 
-            r.id === this.registration.id 
-              ? { ...r, status: newStatus }
-              : r
-          )
-          localStorage.setItem('registrations', JSON.stringify(registrations))
-          
-          // 更新当前页面的状态
+        const response = await apiPut(`/registration/${this.registration.id}/status`, { status: newStatus })
+        if (response.ok) {
           this.registration.status = newStatus
-          
-          // 显示成功提示
           alert(`状态已更新为${this.getStatusText(newStatus)}`)
+        } else {
+          const data = await response.json()
+          alert(data.message || '更新状态失败')
         }
       } catch (error) {
         console.error('更新状态失败:', error)

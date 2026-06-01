@@ -329,6 +329,99 @@ def get_my_join(user):
         'publisher': activity.publisher.username
     } for activity in activities]), 200
 
+@app.route('/api/registrations', methods=['GET'])
+@custom_login_required
+def get_all_registrations(user):
+    my_activities = Activity.query.filter_by(publisher_id=user.id).all()
+    my_activity_ids = [a.id for a in my_activities]
+    joins = JoinActivity.query.filter(JoinActivity.activity_id.in_(my_activity_ids)).all()
+    registrations = []
+    for join in joins:
+        activity = Activity.query.get(join.activity_id)
+        join_user = User.query.get(join.user_id)
+        if activity and join_user:
+            registrations.append({
+                'id': join.id,
+                'user_id': join.user_id,
+                'username': join_user.username,
+                'activity_id': join.activity_id,
+                'activity_title': activity.title,
+                'join_time': join.join_time.strftime('%Y-%m-%d %H:%M:%S')
+            })
+    return jsonify(registrations), 200
+
+@app.route('/api/activities/<int:id>/registrations', methods=['GET'])
+@custom_login_required
+def get_activity_registrations(user, id):
+    activity = Activity.query.get(id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+    if activity.publisher_id != user.id:
+        return jsonify({'message': '无权限查看此活动的报名记录'}), 403
+    joins = JoinActivity.query.filter_by(activity_id=id).all()
+    registrations = []
+    for join in joins:
+        join_user = User.query.get(join.user_id)
+        if join_user:
+            registrations.append({
+                'id': join.id,
+                'user_id': join.user_id,
+                'username': join_user.username,
+                'email': join_user.email,
+                'activity_id': join.activity_id,
+                'activity_title': activity.title,
+                'join_time': join.join_time.strftime('%Y-%m-%d %H:%M:%S')
+            })
+    return jsonify(registrations), 200
+
+@app.route('/api/registration/<int:id>', methods=['GET'])
+@custom_login_required
+def get_registration_detail(user, id):
+    join = JoinActivity.query.get(id)
+    if not join:
+        return jsonify({'message': '报名记录不存在'}), 404
+
+    activity = Activity.query.get(join.activity_id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+
+    join_user = User.query.get(join.user_id)
+    if not join_user:
+        return jsonify({'message': '用户不存在'}), 404
+
+    return jsonify({
+        'id': join.id,
+        'user_id': join.user_id,
+        'username': join_user.username,
+        'email': join_user.email,
+        'activity_id': join.activity_id,
+        'activity_title': activity.title,
+        'join_time': join.join_time.strftime('%Y-%m-%d %H:%M:%S')
+    }), 200
+
+@app.route('/api/registration/<int:id>/status', methods=['PUT'])
+@custom_login_required
+def update_registration_status(user, id):
+    join = JoinActivity.query.get(id)
+    if not join:
+        return jsonify({'message': '报名记录不存在'}), 404
+
+    activity = Activity.query.get(join.activity_id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+
+    if activity.publisher_id != user.id:
+        return jsonify({'message': '无权限修改此报名记录'}), 403
+
+    data = request.get_json()
+    new_status = data.get('status')
+
+    if new_status not in ['pending', 'approved', 'rejected']:
+        return jsonify({'message': '无效的状态值'}), 400
+
+    db.session.commit()
+    return jsonify({'message': '状态更新成功'}), 200
+
 @app.route('/api/user/collection', methods=['GET'])
 @custom_login_required
 def get_my_collection(user):
