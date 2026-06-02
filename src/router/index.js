@@ -85,6 +85,12 @@ const routes = [
     name: 'NotificationList',
     component: () => import('../views/NotificationList.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/volunteer/recruitment',
+    name: 'VolunteerRecruitment',
+    component: () => import('../views/VolunteerRecruitment.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 
