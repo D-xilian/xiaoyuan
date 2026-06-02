@@ -76,6 +76,27 @@ class Comment(db.Model):
     comment_time = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     user = db.relationship('User', backref=db.backref('comments', lazy=True))
 
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    type = db.Column(db.String(50), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    activity_id = db.Column(db.Integer, nullable=True)
+    related_user_id = db.Column(db.Integer, nullable=True)
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'type': self.type,
+            'message': self.message,
+            'activity_id': self.activity_id,
+            'related_user_id': self.related_user_id,
+            'is_read': self.is_read,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        }
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -243,6 +264,15 @@ def join_activity(user, id):
     
     new_join = JoinActivity(user_id=user.id, activity_id=id)
     db.session.add(new_join)
+
+    create_notification(
+        user_id=activity.publisher_id,
+        type='join',
+        message=f'{user.username} 报名了你的活动 "{activity.title}"',
+        activity_id=activity.id,
+        related_user_id=user.id
+    )
+
     db.session.commit()
     
     return jsonify({'message': '报名成功'}), 200
@@ -254,7 +284,18 @@ def cancel_join_activity(user, id):
     if not join:
         return jsonify({'message': '未报名此活动'}), 400
     
+    activity = Activity.query.get(id)
     db.session.delete(join)
+
+    if activity:
+        create_notification(
+            user_id=activity.publisher_id,
+            type='cancel',
+            message=f'{user.username} 取消了报名活动 "{activity.title}"',
+            activity_id=activity.id,
+            related_user_id=user.id
+        )
+
     db.session.commit()
     return jsonify({'message': '取消报名成功'}), 200
 
@@ -297,6 +338,15 @@ def add_comment(user, id):
     
     new_comment = Comment(user_id=user.id, activity_id=id, content=content)
     db.session.add(new_comment)
+
+    create_notification(
+        user_id=activity.publisher_id,
+        type='comment',
+        message=f'{user.username} 评论了你的活动 "{activity.title}": {content[:50]}{"..." if len(content) > 50 else ""}',
+        activity_id=activity.id,
+        related_user_id=user.id
+    )
+
     db.session.commit()
     
     return jsonify({'message': '评论成功'}), 200
@@ -419,6 +469,23 @@ def update_registration_status(user, id):
     if new_status not in ['pending', 'approved', 'rejected']:
         return jsonify({'message': '无效的状态值'}), 400
 
+    if new_status == 'approved':
+        create_notification(
+            user_id=join.user_id,
+            type='approved',
+            message=f'你在 "{activity.title}" 中的报名已被通过',
+            activity_id=activity.id,
+            related_user_id=user.id
+        )
+    elif new_status == 'rejected':
+        create_notification(
+            user_id=join.user_id,
+            type='rejected',
+            message=f'你在 "{activity.title}" 中的报名已被拒绝',
+            activity_id=activity.id,
+            related_user_id=user.id
+        )
+
     db.session.commit()
     return jsonify({'message': '状态更新成功'}), 200
 
@@ -471,6 +538,72 @@ def update_user_profile(user, user_id):
             'email': user.email
         }
     }), 200
+
+# ==================== 通知 API ====================
+
+@app.route('/api/notifications', methods=['GET'])
+@custom_login_required
+def get_notifications(user):
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
+    pagination = Notification.query.filter_by(user_id=user.id)\
+        .order_by(Notification.created_at.desc())\
+        .paginate(page=page, per_page=per_page, error_out=False)
+    
+    return jsonify({
+        'notifications': [n.to_dict() for n in pagination.items],
+        'total': pagination.total,
+        'pages': pagination.pages,
+        'current_page': pagination.page
+    }), 200
+
+
+@app.route('/api/notifications/unread-count', methods=['GET'])
+@custom_login_required
+def get_unread_count(user):
+    count = Notification.query.filter_by(user_id=user.id, is_read=False).count()
+    return jsonify({'count': count}), 200
+
+
+@app.route('/api/notifications/<int:id>/read', methods=['PUT'])
+@custom_login_required
+def mark_notification_read(user, id):
+    notification = Notification.query.get(id)
+    if not notification:
+        return jsonify({'message': '通知不存在'}), 404
+    if notification.user_id != user.id:
+        return jsonify({'message': '无权限操作'}), 403
+    
+    notification.is_read = True
+    db.session.commit()
+    return jsonify({'message': '已标记为已读'}), 200
+
+
+@app.route('/api/notifications/read-all', methods=['PUT'])
+@custom_login_required
+def mark_all_read(user):
+    Notification.query.filter_by(user_id=user.id, is_read=False).update({'is_read': True})
+    db.session.commit()
+    return jsonify({'message': '已全部标记为已读'}), 200
+
+
+def create_notification(user_id, type, message, activity_id=None, related_user_id=None):
+    try:
+        notification = Notification(
+            user_id=user_id,
+            type=type,
+            message=message,
+            activity_id=activity_id,
+            related_user_id=related_user_id
+        )
+        db.session.add(notification)
+        db.session.commit()
+        print(f'[通知] 已创建: type={type}, user_id={user_id}, message="{message}"')
+    except Exception as e:
+        print(f'[通知] 创建失败: {e}')
+        db.session.rollback()
+
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):

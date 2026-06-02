@@ -6,6 +6,7 @@
         <router-link to="/">首页</router-link>
         <router-link to="/registration/list">报名列表</router-link>
         <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
+        <notification-bell v-if="isLoggedIn" />
         <a v-if="isLoggedIn" @click="logout" class="logout-link">退出登录</a>
       </nav>
     </header>
@@ -136,9 +137,13 @@
 
 <script>
 import { apiGet, apiPut, isLoggedIn } from '../utils/api'
+import NotificationBell from '../components/NotificationBell.vue'
 
 export default {
   name: 'RegistrationDetail',
+  components: {
+    NotificationBell
+  },
   data() {
     return {
       isLoggedIn: false,
