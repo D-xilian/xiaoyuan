@@ -35,3 +35,6 @@ npm-debug.log*
 dist/index.html
 dist/index-*.js
 dist/index-*.css
+
+# 忽略上传的图片文件
+uploads/
