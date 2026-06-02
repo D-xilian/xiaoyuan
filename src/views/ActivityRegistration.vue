@@ -8,6 +8,7 @@
         <router-link to="/my-activities" v-if="isLoggedIn">我发布的活动</router-link>
         <router-link to="/my-join" v-if="isLoggedIn">我的报名</router-link>
         <router-link to="/login" v-if="!isLoggedIn">登录</router-link>
+        <notification-bell v-if="isLoggedIn" />
         <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
         <a v-if="isLoggedIn" @click="logout" class="logout-link">退出登录</a>
       </nav>
@@ -150,9 +151,13 @@
 
 <script>
 import { apiGet, apiPost, isLoggedIn, getCurrentUser } from '../utils/api'
+import NotificationBell from '../components/NotificationBell.vue'
 
 export default {
   name: 'ActivityRegistration',
+  components: {
+    NotificationBell
+  },
   data() {
     return {
       isLoggedIn: false,
