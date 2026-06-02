@@ -72,16 +72,30 @@
             <h3>报名信息</h3>
             
             <div class="form-group">
+              <label for="category">活动类型</label>
+              <select id="category" v-model="selectedCategory" :disabled="!!activityId">
+                <option value="">请选择活动类型</option>
+                <option value="sports">体育运动</option>
+                <option value="academic">学术科技</option>
+                <option value="art">文化艺术</option>
+                <option value="social">社会实践</option>
+                <option value="entertainment">娱乐休闲</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
+
+            <div class="form-group">
               <label for="activity">报名项目 <span class="required">*</span></label>
               <select id="activity" v-model="form.activity" :class="{ error: errors.activity }" :disabled="!!activityId">
                 <option :value="null">请选择您发布的活动</option>
-                <option v-for="act in availableActivities" :key="act.id" :value="act.id">
-                  {{ act.title }}
+                <option v-for="act in filteredActivities" :key="act.id" :value="act.id">
+                  {{ act.title }} ({{ getCategoryText(act.category) }})
                 </option>
               </select>
               <span v-if="errors.activity" class="error-message">{{ errors.activity }}</span>
-              <small v-if="availableActivities.length === 0" style="color: #999;">您还没有发布任何活动</small>
-              <small v-else style="color: #999;">共 {{ availableActivities.length }} 个您发布的活动</small>
+              <small v-if="filteredActivities.length === 0 && selectedCategory" style="color: #999;">该类型下没有活动</small>
+              <small v-else-if="filteredActivities.length === 0" style="color: #999;">请先选择活动类型</small>
+              <small v-else style="color: #999;">共 {{ filteredActivities.length }} 个您发布的活动</small>
             </div>
             
             <div class="form-group">
@@ -163,6 +177,7 @@ export default {
       isLoggedIn: false,
       activityName: '',
       activityId: null,
+      selectedCategory: '',
       form: {
         name: '',
         phone: '',
@@ -187,6 +202,14 @@ export default {
       submittedOnce: false
     }
   },
+  computed: {
+    filteredActivities() {
+      if (!this.selectedCategory) {
+        return this.availableActivities
+      }
+      return this.availableActivities.filter(act => act.category === this.selectedCategory)
+    }
+  },
   mounted() {
     this.checkLoginStatus()
     this.loadAvailableActivities()
@@ -199,6 +222,17 @@ export default {
     }
   },
   methods: {
+    getCategoryText(category) {
+      const categoryMap = {
+        'sports': '体育运动',
+        'academic': '学术科技',
+        'art': '文化艺术',
+        'social': '社会实践',
+        'entertainment': '娱乐休闲',
+        'other': '其他'
+      }
+      return categoryMap[category] || '其他'
+    },
     checkLoginStatus() {
       this.isLoggedIn = isLoggedIn()
       if (!this.isLoggedIn) {
@@ -222,6 +256,7 @@ export default {
           const activity = this.availableActivities.find(a => a.id === parseInt(this.form.activity))
           if (activity) {
             this.activityName = activity.title
+            this.selectedCategory = activity.category || ''
           }
         }
       } catch (error) {

@@ -7,6 +7,18 @@
         <input type="text" id="title" v-model="form.title" required>
       </div>
       <div class="form-group">
+        <label for="category">活动类型</label>
+        <select id="category" v-model="form.category" required>
+          <option value="">请选择活动类型</option>
+          <option value="sports">体育运动</option>
+          <option value="academic">学术科技</option>
+          <option value="art">文化艺术</option>
+          <option value="social">社会实践</option>
+          <option value="entertainment">娱乐休闲</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label for="description">活动描述</label>
         <textarea id="description" v-model="form.description" required></textarea>
       </div>
@@ -33,6 +45,7 @@ export default {
     return {
       form: {
         title: '',
+        category: '',
         description: '',
         time: '',
         location: ''
@@ -61,6 +74,7 @@ export default {
         const data = await response.json()
         
         this.form.title = data.title
+        this.form.category = data.category || ''
         this.form.description = data.description
         this.form.time = data.time.replace(' ', 'T')
         this.form.location = data.location
@@ -128,7 +142,8 @@ export default {
 }
 
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
   width: 100%;
   padding: 10px;
   border: 1px solid #ddd;
@@ -138,6 +153,10 @@ export default {
 .form-group textarea {
   height: 100px;
   resize: vertical;
+}
+
+.form-group select {
+  background-color: white;
 }
 
 .btn {

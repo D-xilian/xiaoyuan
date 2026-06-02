@@ -7,6 +7,18 @@
         <input type="text" id="title" v-model="form.title" required>
       </div>
       <div class="form-group">
+        <label for="category">活动类型</label>
+        <select id="category" v-model="form.category" required>
+          <option value="">请选择活动类型</option>
+          <option value="sports">体育运动</option>
+          <option value="academic">学术科技</option>
+          <option value="art">文化艺术</option>
+          <option value="social">社会实践</option>
+          <option value="entertainment">娱乐休闲</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label for="description">活动描述</label>
         <textarea id="description" v-model="form.description" required></textarea>
       </div>
@@ -41,6 +53,7 @@ export default {
     return {
       form: {
         title: '',
+        category: '',
         description: '',
         time: '',
         location: '',
