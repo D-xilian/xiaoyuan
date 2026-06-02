@@ -48,6 +48,38 @@ export async function apiDelete(url) {
   return response
 }
 
+export async function getUnreadCount() {
+  const response = await fetch(`${API_BASE_URL}/notifications/unread`, {
+    method: 'GET',
+    headers: getAuthHeaders()
+  })
+  return response
+}
+
+export async function getNotifications(page = 1) {
+  const response = await fetch(`${API_BASE_URL}/notifications?page=${page}`, {
+    method: 'GET',
+    headers: getAuthHeaders()
+  })
+  return response
+}
+
+export async function markNotificationRead(id) {
+  const response = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
+    method: 'POST',
+    headers: getAuthHeaders()
+  })
+  return response
+}
+
+export async function markAllNotificationsRead() {
+  const response = await fetch(`${API_BASE_URL}/notifications/read-all`, {
+    method: 'POST',
+    headers: getAuthHeaders()
+  })
+  return response
+}
+
 export function getCurrentUser() {
   const user = localStorage.getItem('user')
   return user ? JSON.parse(user) : null

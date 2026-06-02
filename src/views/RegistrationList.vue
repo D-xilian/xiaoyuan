@@ -217,6 +217,8 @@ export default {
             status: 'approved',
             createdAt: r.join_time
           }))
+        } else if (response.status === 401) {
+          this.$router.push('/login')
         } else {
           console.error('加载报名记录失败:', response.status)
           this.registrations = []
@@ -238,6 +240,8 @@ export default {
             id: a.id,
             name: a.title
           }))
+        } else if (response.status === 401) {
+          this.$router.push('/login')
         } else {
           this.availableActivities = []
         }

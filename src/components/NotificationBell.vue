@@ -35,9 +35,11 @@ export default {
         if (response.ok) {
           const data = await response.json()
           this.unreadCount = data.count
+        } else if (response.status === 401) {
+          this.unreadCount = 0
         }
       } catch (e) {
-        // 静默失败
+        this.unreadCount = 0
       }
     },
     refresh() {

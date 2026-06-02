@@ -407,6 +407,8 @@ export default {
             createdAt: activity.created_at || activity.time
           }))
           this.allActivities = [...this.myActivities]
+        } else if (response.status === 401) {
+          this.$router.push('/login')
         } else {
           console.error('加载活动失败:', response.status)
           this.myActivities = []
@@ -438,6 +440,8 @@ export default {
             date: activity.time,
             location: activity.location
           }))
+        } else if (response.status === 401) {
+          this.$router.push('/login')
         } else {
           console.error('加载报名记录失败:', response.status)
           this.myRegistrations = []

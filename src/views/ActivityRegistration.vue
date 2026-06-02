@@ -153,6 +153,9 @@
             <button type="submit" class="btn btn-primary" :disabled="submitting">
               <span v-if="submitting" class="spinner"></span>
               {{ submitting ? '提交中...' : '提交报名' }}
+            </button>
+          </div>
+        </form>
       </div>
     </main>
   </div>

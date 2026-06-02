@@ -517,6 +517,52 @@ def update_user_profile(user, user_id):
     return jsonify({'message': '更新成功'}), 200
 
 
+@app.route('/api/notifications/unread', methods=['GET'])
+@custom_login_required
+def get_unread_notification_count(user):
+    count = Notification.query.filter_by(user_id=user.id, is_read=False).count()
+    return jsonify({'count': count}), 200
+
+@app.route('/api/notifications', methods=['GET'])
+@custom_login_required
+def get_notifications(user):
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    pagination = Notification.query.filter_by(user_id=user.id).order_by(Notification.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    notifications = pagination.items
+    return jsonify({
+        'notifications': [{
+            'id': n.id,
+            'type': n.type,
+            'message': n.message,
+            'activity_id': n.activity_id,
+            'is_read': n.is_read,
+            'created_at': n.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        } for n in notifications],
+        'pages': pagination.pages,
+        'total': pagination.total
+    }), 200
+
+@app.route('/api/notifications/read-all', methods=['POST'])
+@custom_login_required
+def mark_all_notifications_read(user):
+    Notification.query.filter_by(user_id=user.id, is_read=False).update({'is_read': True})
+    db.session.commit()
+    return jsonify({'message': '已全部标为已读'}), 200
+
+@app.route('/api/notifications/<int:id>/read', methods=['POST'])
+@custom_login_required
+def mark_notification_read(user, id):
+    notification = Notification.query.get(id)
+    if not notification:
+        return jsonify({'message': '通知不存在'}), 404
+    if notification.user_id != user.id:
+        return jsonify({'message': '无权限操作此通知'}), 403
+    notification.is_read = True
+    db.session.commit()
+    return jsonify({'message': '已标记为已读'}), 200
+
+
 def create_notification(user_id, type, message, activity_id=None, related_user_id=None):
     try:
         notification = Notification(
