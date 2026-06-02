@@ -52,6 +52,7 @@ class Activity(db.Model):
     description = db.Column(db.Text, nullable=False)
     time = db.Column(db.DateTime, nullable=False)
     location = db.Column(db.String(100), nullable=False)
+    category = db.Column(db.String(50), nullable=False, default='other')
     image_url = db.Column(db.String(500), nullable=True)
     publisher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     publisher = db.relationship('User', backref=db.backref('activities', lazy=True))
@@ -148,6 +149,7 @@ def get_activities():
         'description': activity.description,
         'time': activity.time.strftime('%Y-%m-%d %H:%M'),
         'location': activity.location,
+        'category': activity.category,
         'image_url': activity.image_url,
         'publisher': activity.publisher.username
     } for activity in activities]), 200
@@ -160,6 +162,7 @@ def create_activity(user):
     description = data.get('description')
     time = datetime.datetime.strptime(data.get('time'), '%Y-%m-%dT%H:%M')
     location = data.get('location')
+    category = data.get('category', 'other')
     image_url = data.get('image_url')
     
     new_activity = Activity(
@@ -167,6 +170,7 @@ def create_activity(user):
         description=description,
         time=time,
         location=location,
+        category=category,
         image_url=image_url,
         publisher_id=user.id
     )
@@ -209,6 +213,7 @@ def get_activity(id):
         'description': activity.description,
         'time': activity.time.strftime('%Y-%m-%d %H:%M'),
         'location': activity.location,
+        'category': activity.category,
         'image_url': activity.image_url,
         'publisher': activity.publisher.username,
         'comments': [{
@@ -234,6 +239,7 @@ def update_activity(user, id):
     activity.description = data.get('description', activity.description)
     activity.time = datetime.datetime.strptime(data.get('time'), '%Y-%m-%dT%H:%M')
     activity.location = data.get('location', activity.location)
+    activity.category = data.get('category', activity.category)
     
     db.session.commit()
     return jsonify({'message': '活动更新成功'}), 200
@@ -361,6 +367,7 @@ def get_my_activities(user):
         'description': activity.description,
         'time': activity.time.strftime('%Y-%m-%d %H:%M'),
         'location': activity.location,
+        'category': activity.category,
         'image_url': activity.image_url,
         'publisher': activity.publisher.username
     } for activity in activities]), 200
@@ -376,6 +383,7 @@ def get_my_join(user):
         'description': activity.description,
         'time': activity.time.strftime('%Y-%m-%d %H:%M'),
         'location': activity.location,
+        'category': activity.category,
         'publisher': activity.publisher.username
     } for activity in activities]), 200
 
@@ -500,6 +508,7 @@ def get_my_collection(user):
         'description': activity.description,
         'time': activity.time.strftime('%Y-%m-%d %H:%M'),
         'location': activity.location,
+        'category': activity.category,
         'publisher': activity.publisher.username
     } for activity in activities]), 200
 
