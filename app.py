@@ -77,6 +77,16 @@ class Comment(db.Model):
     comment_time = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     user = db.relationship('User', backref=db.backref('comments', lazy=True))
 
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    type = db.Column(db.String(50), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    activity_id = db.Column(db.Integer, nullable=True)
+    related_user_id = db.Column(db.Integer, nullable=True)
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -243,6 +253,15 @@ def join_activity(user, id):
     activity = Activity.query.get(id)
     if not activity:
         return jsonify({'message': '活动不存在'}), 404
+    
+    if JoinActivity.query.filter_by(user_id=user.id, activity_id=id).first():
+        return jsonify({'message': '已经报名此活动'}), 400
+    
+    new_join = JoinActivity(user_id=user.id, activity_id=id)
+    db.session.add(new_join)
+    
+    create_notification(
+        user_id=activity.publisher_id,
         type='join',
         message=f'{user.username} 报名了你的活动 "{activity.title}"',
         activity_id=activity.id,
@@ -254,12 +273,25 @@ def join_activity(user, id):
     return jsonify({'message': '报名成功'}), 200
 
 @app.route('/api/activities/<int:id>/cancel', methods=['POST'])
+@custom_login_required
 def cancel_join_activity(user, id):
-            type='cancel',
-            message=f'{user.username} 取消了报名活动 "{activity.title}"',
-            activity_id=activity.id,
-            related_user_id=user.id
-        )
+    activity = Activity.query.get(id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+    
+    join_record = JoinActivity.query.filter_by(user_id=user.id, activity_id=id).first()
+    if not join_record:
+        return jsonify({'message': '未报名此活动'}), 400
+    
+    db.session.delete(join_record)
+    
+    create_notification(
+        user_id=activity.publisher_id,
+        type='cancel',
+        message=f'{user.username} 取消了报名活动 "{activity.title}"',
+        activity_id=activity.id,
+        related_user_id=user.id
+    )
 
     db.session.commit()
     return jsonify({'message': '取消报名成功'}), 200
@@ -297,6 +329,17 @@ def add_comment(user, id):
     activity = Activity.query.get(id)
     if not activity:
         return jsonify({'message': '活动不存在'}), 404
+    
+    data = request.get_json()
+    content = data.get('content')
+    if not content:
+        return jsonify({'message': '评论内容不能为空'}), 400
+    
+    new_comment = Comment(user_id=user.id, activity_id=id, content=content)
+    db.session.add(new_comment)
+    
+    create_notification(
+        user_id=activity.publisher_id,
         type='comment',
         message=f'{user.username} 评论了你的活动 "{activity.title}": {content[:50]}{"..." if len(content) > 50 else ""}',
         activity_id=activity.id,
@@ -471,6 +514,16 @@ def update_user_profile(user, user_id):
         user.password = new_password
     
     db.session.commit()
+    return jsonify({'message': '更新成功'}), 200
+
+
+def create_notification(user_id, type, message, activity_id=None, related_user_id=None):
+    try:
+        notification = Notification(
+            user_id=user_id,
+            type=type,
+            message=message,
+            activity_id=activity_id,
             related_user_id=related_user_id
         )
         db.session.add(notification)
