@@ -8,7 +8,6 @@
         <router-link to="/my-activities" v-if="isLoggedIn">我发布的活动</router-link>
         <router-link to="/my-join" v-if="isLoggedIn">我的报名</router-link>
         <router-link to="/login" v-if="!isLoggedIn">登录</router-link>
-        <notification-bell v-if="isLoggedIn" />
         <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
         <a v-if="isLoggedIn" @click="logout" class="logout-link">退出登录</a>
       </nav>
@@ -151,13 +150,9 @@
           </div>
           
           <div class="form-actions">
-            <button type="button" class="btn btn-secondary" @click="resetForm">重置表单</button>
             <button type="submit" class="btn btn-primary" :disabled="submitting">
               <span v-if="submitting" class="spinner"></span>
               {{ submitting ? '提交中...' : '提交报名' }}
-            </button>
-          </div>
-        </form>
       </div>
     </main>
   </div>
