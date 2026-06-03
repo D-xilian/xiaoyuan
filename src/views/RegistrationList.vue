@@ -6,7 +6,6 @@
         <router-link to="/">首页</router-link>
         <router-link to="/activity/register">报名活动</router-link>
         <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
-        <notification-bell v-if="isLoggedIn" />
         <a v-if="isLoggedIn" @click="logout" class="logout-link">退出登录</a>
       </nav>
     </header>
@@ -128,13 +127,9 @@
 
 <script>
 import { apiGet, getCurrentUser, isLoggedIn } from '../utils/api'
-import NotificationBell from '../components/NotificationBell.vue'
 
 export default {
   name: 'RegistrationList',
-  components: {
-    NotificationBell
-  },
   data() {
     return {
       isLoggedIn: false,
@@ -222,6 +217,8 @@ export default {
             status: 'approved',
             createdAt: r.join_time
           }))
+        } else if (response.status === 401) {
+          this.$router.push('/login')
         } else {
           console.error('加载报名记录失败:', response.status)
           this.registrations = []
@@ -243,6 +240,8 @@ export default {
             id: a.id,
             name: a.title
           }))
+        } else if (response.status === 401) {
+          this.$router.push('/login')
         } else {
           this.availableActivities = []
         }

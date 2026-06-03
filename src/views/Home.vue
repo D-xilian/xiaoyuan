@@ -11,8 +11,8 @@
         <router-link to="/volunteer/recruitment" v-if="isLoggedIn">志愿者招募</router-link>
         <router-link to="/login" v-if="!isLoggedIn">登录</router-link>
         <router-link to="/register" v-if="!isLoggedIn">注册</router-link>
-        <notification-bell ref="notificationBell" v-if="isLoggedIn" />
         <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
+        <NotificationBell v-if="isLoggedIn" />
         <a v-if="isLoggedIn" @click="logout" class="logout-link">退出登录</a>
       </nav>
     </header>

@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5000/api'
+const API_BASE_URL = '/api'
 
 export function getAuthHeaders() {
   const user = localStorage.getItem('user')
@@ -48,24 +48,16 @@ export async function apiDelete(url) {
   return response
 }
 
-export function getCurrentUser() {
-  const user = localStorage.getItem('user')
-  return user ? JSON.parse(user) : null
-}
-
-export function isLoggedIn() {
-  return !!localStorage.getItem('user')
-}
-
-// ==================== 通知 API ====================
-
-export async function getNotifications(page = 1) {
-  const response = await apiGet(`/notifications?page=${page}&per_page=20`)
+export async function getUnreadCount() {
+  const response = await fetch(`${API_BASE_URL}/notifications/unread`, {
+    method: 'GET',
+    headers: getAuthHeaders()
+  })
   return response
 }
 
-export async function getUnreadCount() {
-  const response = await fetch(`${API_BASE_URL}/notifications/unread-count`, {
+export async function getNotifications(page = 1) {
+  const response = await fetch(`${API_BASE_URL}/notifications?page=${page}`, {
     method: 'GET',
     headers: getAuthHeaders()
   })
@@ -73,11 +65,26 @@ export async function getUnreadCount() {
 }
 
 export async function markNotificationRead(id) {
-  const response = await apiPut(`/notifications/${id}/read`)
+  const response = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
+    method: 'POST',
+    headers: getAuthHeaders()
+  })
   return response
 }
 
 export async function markAllNotificationsRead() {
-  const response = await apiPut('/notifications/read-all')
+  const response = await fetch(`${API_BASE_URL}/notifications/read-all`, {
+    method: 'POST',
+    headers: getAuthHeaders()
+  })
   return response
+}
+
+export function getCurrentUser() {
+  const user = localStorage.getItem('user')
+  return user ? JSON.parse(user) : null
+}
+
+export function isLoggedIn() {
+  return !!localStorage.getItem('user')
 }

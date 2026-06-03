@@ -140,11 +140,15 @@
                     @change="validateField('activity')"
                   >
                   <div class="activity-content">
+                    <div v-if="activity.image_url" class="activity-image">
+                      <img :src="activity.image_url" :alt="activity.title">
+                    </div>
                     <h5>{{ activity.title }}</h5>
                     <p class="activity-desc">{{ activity.description }}</p>
                     <div class="activity-meta">
                       <span class="meta-item">📅 {{ activity.date }}</span>
                       <span class="meta-item">📍 {{ activity.location }}</span>
+                      <span v-if="activity.category" class="meta-item category-tag">🏷️ {{ getCategoryText(activity.category) }}</span>
                     </div>
                     <span class="activity-tags">
                       <span v-for="tag in activity.tags" :key="tag" class="tag">{{ tag }}</span>
@@ -252,17 +256,19 @@ export default {
           id: act.id,
           title: act.title,
           description: act.description,
-          date: act.date,
+          date: act.time || act.date,
           location: act.location,
+          image_url: act.image_url,
+          category: act.category,
           tags: act.tags ? act.tags.split(',').map(t => t.trim()) : []
         }))
       } catch (error) {
         console.error('加载活动列表失败:', error)
         this.activities = [
-          { id: 1, title: '社区关爱老人活动', description: '前往社区敬老院，为老人提供陪伴和帮助', date: '2024-01-15', location: '幸福社区敬老院', tags: ['关爱', '社区'] },
-          { id: 2, title: '校园环保志愿者', description: '参与校园环境整治，维护美丽校园', date: '2024-01-18', location: '校园各区域', tags: ['环保', '校园'] },
-          { id: 3, title: '图书馆整理志愿者', description: '协助图书馆进行书籍整理和分类工作', date: '2024-01-20', location: '校图书馆', tags: ['图书', '整理'] },
-          { id: 4, title: '公益义卖活动', description: '参与校园公益义卖，为贫困儿童筹集善款', date: '2024-01-22', location: '校园广场', tags: ['义卖', '公益'] }
+          { id: 1, title: '社区关爱老人活动', description: '前往社区敬老院，为老人提供陪伴和帮助', date: '2024-01-15', location: '幸福社区敬老院', image_url: '', category: 'social', tags: ['关爱', '社区'] },
+          { id: 2, title: '校园环保志愿者', description: '参与校园环境整治，维护美丽校园', date: '2024-01-18', location: '校园各区域', image_url: '', category: 'social', tags: ['环保', '校园'] },
+          { id: 3, title: '图书馆整理志愿者', description: '协助图书馆进行书籍整理和分类工作', date: '2024-01-20', location: '校图书馆', image_url: '', category: 'volunteer', tags: ['图书', '整理'] },
+          { id: 4, title: '公益义卖活动', description: '参与校园公益义卖，为贫困儿童筹集善款', date: '2024-01-22', location: '校园广场', image_url: '', category: 'social', tags: ['义卖', '公益'] }
         ]
       }
     },
@@ -396,6 +402,18 @@ export default {
       }
       this.errors = {}
       this.submitSuccess = false
+    },
+    getCategoryText(category) {
+      const categoryMap = {
+        'sports': '体育运动',
+        'academic': '学术科技',
+        'art': '文化艺术',
+        'social': '社会实践',
+        'entertainment': '娱乐休闲',
+        'volunteer': '志愿服务',
+        'other': '其他'
+      }
+      return categoryMap[category] || category
     },
     logout() {
       localStorage.removeItem('user')
@@ -705,26 +723,45 @@ export default {
 }
 
 .activity-card {
+  position: relative;
+  cursor: pointer;
   border: 2px solid #e0e0e0;
   border-radius: 12px;
-  padding: 18px;
-  cursor: pointer;
+  overflow: hidden;
   transition: all 0.3s ease;
-  position: relative;
 }
 
 .activity-card:hover {
   border-color: #2ecc71;
   box-shadow: 0 4px 15px rgba(46, 204, 113, 0.15);
+  transform: translateY(-2px);
 }
 
 .activity-card.selected {
   border-color: #2ecc71;
-  background-color: rgba(46, 204, 113, 0.05);
+  background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+  box-shadow: 0 4px 15px rgba(46, 204, 113, 0.2);
 }
 
 .activity-card.error {
   border-color: #e74c3c;
+}
+
+.activity-image {
+  width: 100%;
+  height: 160px;
+  overflow: hidden;
+}
+
+.activity-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.activity-card:hover .activity-image img {
+  transform: scale(1.05);
 }
 
 .activity-card input[type="radio"] {
@@ -735,6 +772,10 @@ export default {
   color: #333;
   margin-bottom: 8px;
   font-size: 15px;
+}
+
+.activity-content {
+  padding: 16px;
 }
 
 .activity-desc {
@@ -758,6 +799,14 @@ export default {
 .meta-item {
   font-size: 12px;
   color: #888;
+}
+
+.category-tag {
+  background: #e8f5e9;
+  color: #2e7d32;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
 }
 
 .activity-tags {

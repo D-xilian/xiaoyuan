@@ -15,7 +15,7 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
-CORS(app, supports_credentials=True)
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*"}, r"/uploads/*": {"origins": "*"}})
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 
@@ -86,17 +86,6 @@ class Notification(db.Model):
     related_user_id = db.Column(db.Integer, nullable=True)
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'type': self.type,
-            'message': self.message,
-            'activity_id': self.activity_id,
-            'related_user_id': self.related_user_id,
-            'is_read': self.is_read,
-            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S')
-        }
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -270,7 +259,7 @@ def join_activity(user, id):
     
     new_join = JoinActivity(user_id=user.id, activity_id=id)
     db.session.add(new_join)
-
+    
     create_notification(
         user_id=activity.publisher_id,
         type='join',
@@ -286,21 +275,23 @@ def join_activity(user, id):
 @app.route('/api/activities/<int:id>/cancel', methods=['POST'])
 @custom_login_required
 def cancel_join_activity(user, id):
-    join = JoinActivity.query.filter_by(user_id=user.id, activity_id=id).first()
-    if not join:
+    activity = Activity.query.get(id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+    
+    join_record = JoinActivity.query.filter_by(user_id=user.id, activity_id=id).first()
+    if not join_record:
         return jsonify({'message': '未报名此活动'}), 400
     
-    activity = Activity.query.get(id)
-    db.session.delete(join)
-
-    if activity:
-        create_notification(
-            user_id=activity.publisher_id,
-            type='cancel',
-            message=f'{user.username} 取消了报名活动 "{activity.title}"',
-            activity_id=activity.id,
-            related_user_id=user.id
-        )
+    db.session.delete(join_record)
+    
+    create_notification(
+        user_id=activity.publisher_id,
+        type='cancel',
+        message=f'{user.username} 取消了报名活动 "{activity.title}"',
+        activity_id=activity.id,
+        related_user_id=user.id
+    )
 
     db.session.commit()
     return jsonify({'message': '取消报名成功'}), 200
@@ -341,10 +332,12 @@ def add_comment(user, id):
     
     data = request.get_json()
     content = data.get('content')
+    if not content:
+        return jsonify({'message': '评论内容不能为空'}), 400
     
     new_comment = Comment(user_id=user.id, activity_id=id, content=content)
     db.session.add(new_comment)
-
+    
     create_notification(
         user_id=activity.publisher_id,
         type='comment',
@@ -469,23 +462,6 @@ def update_registration_status(user, id):
         return jsonify({'message': '活动不存在'}), 404
 
     if activity.publisher_id != user.id:
-        return jsonify({'message': '无权限修改此报名记录'}), 403
-
-    data = request.get_json()
-    new_status = data.get('status')
-
-    if new_status not in ['pending', 'approved', 'rejected']:
-        return jsonify({'message': '无效的状态值'}), 400
-
-    if new_status == 'approved':
-        create_notification(
-            user_id=join.user_id,
-            type='approved',
-            message=f'你在 "{activity.title}" 中的报名已被通过',
-            activity_id=activity.id,
-            related_user_id=user.id
-        )
-    elif new_status == 'rejected':
         create_notification(
             user_id=join.user_id,
             type='rejected',
@@ -538,63 +514,53 @@ def update_user_profile(user, user_id):
         user.password = new_password
     
     db.session.commit()
-    
-    return jsonify({
-        'message': '个人信息更新成功',
-        'user': {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email
-        }
-    }), 200
+    return jsonify({'message': '更新成功'}), 200
 
-# ==================== 通知 API ====================
+
+@app.route('/api/notifications/unread', methods=['GET'])
+@custom_login_required
+def get_unread_notification_count(user):
+    count = Notification.query.filter_by(user_id=user.id, is_read=False).count()
+    return jsonify({'count': count}), 200
 
 @app.route('/api/notifications', methods=['GET'])
 @custom_login_required
 def get_notifications(user):
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-    
-    pagination = Notification.query.filter_by(user_id=user.id)\
-        .order_by(Notification.created_at.desc())\
-        .paginate(page=page, per_page=per_page, error_out=False)
-    
+    per_page = 20
+    pagination = Notification.query.filter_by(user_id=user.id).order_by(Notification.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    notifications = pagination.items
     return jsonify({
-        'notifications': [n.to_dict() for n in pagination.items],
-        'total': pagination.total,
+        'notifications': [{
+            'id': n.id,
+            'type': n.type,
+            'message': n.message,
+            'activity_id': n.activity_id,
+            'is_read': n.is_read,
+            'created_at': n.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        } for n in notifications],
         'pages': pagination.pages,
-        'current_page': pagination.page
+        'total': pagination.total
     }), 200
 
-
-@app.route('/api/notifications/unread-count', methods=['GET'])
+@app.route('/api/notifications/read-all', methods=['POST'])
 @custom_login_required
-def get_unread_count(user):
-    count = Notification.query.filter_by(user_id=user.id, is_read=False).count()
-    return jsonify({'count': count}), 200
+def mark_all_notifications_read(user):
+    Notification.query.filter_by(user_id=user.id, is_read=False).update({'is_read': True})
+    db.session.commit()
+    return jsonify({'message': '已全部标为已读'}), 200
 
-
-@app.route('/api/notifications/<int:id>/read', methods=['PUT'])
+@app.route('/api/notifications/<int:id>/read', methods=['POST'])
 @custom_login_required
 def mark_notification_read(user, id):
     notification = Notification.query.get(id)
     if not notification:
         return jsonify({'message': '通知不存在'}), 404
     if notification.user_id != user.id:
-        return jsonify({'message': '无权限操作'}), 403
-    
+        return jsonify({'message': '无权限操作此通知'}), 403
     notification.is_read = True
     db.session.commit()
     return jsonify({'message': '已标记为已读'}), 200
-
-
-@app.route('/api/notifications/read-all', methods=['PUT'])
-@custom_login_required
-def mark_all_read(user):
-    Notification.query.filter_by(user_id=user.id, is_read=False).update({'is_read': True})
-    db.session.commit()
-    return jsonify({'message': '已全部标记为已读'}), 200
 
 
 def create_notification(user_id, type, message, activity_id=None, related_user_id=None):
