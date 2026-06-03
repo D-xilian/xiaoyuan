@@ -91,6 +91,24 @@ const routes = [
     name: 'VolunteerRecruitment',
     component: () => import('../views/VolunteerRecruitment.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin/users',
+    name: 'AdminUserManagement',
+    component: () => import('../views/AdminUserManagement.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin/volunteers',
+    name: 'AdminVolunteerManagement',
+    component: () => import('../views/AdminVolunteerManagement.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin/activities',
+    name: 'AdminActivityManagement',
+    component: () => import('../views/AdminActivityManagement.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 

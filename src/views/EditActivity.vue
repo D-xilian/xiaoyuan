@@ -38,7 +38,7 @@
 </template>
 
 <script>
-import { apiGet, apiPut } from '../utils/api'
+import { adminApiGet, adminApiPut, isAdmin } from '../utils/api'
 
 export default {
   data() {
@@ -55,6 +55,11 @@ export default {
     }
   },
   mounted() {
+    if (!isAdmin()) {
+      alert('无权限访问此页面')
+      this.$router.push('/')
+      return
+    }
     this.loadActivity()
   },
   methods: {
@@ -67,7 +72,7 @@ export default {
 
       this.loading = true
       try {
-        const response = await apiGet(`/activities/${activityId}`)
+        const response = await adminApiGet(`/activities/${activityId}`)
         if (!response.ok) {
           throw new Error('获取活动信息失败')
         }
@@ -94,7 +99,7 @@ export default {
 
       this.loading = true
       try {
-        const response = await apiPut(`/activities/${activityId}`, this.form)
+        const response = await adminApiPut(`/activities/${activityId}`, this.form)
 
         const data = await response.json()
 

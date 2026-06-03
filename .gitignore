@@ -31,6 +31,9 @@ node_modules/
 *.log
 npm-debug.log*
 
+# Uploads
+uploads/
+
 # 忽略构建入口文件，但保留 assets 目录
 dist/index.html
 dist/index-*.js

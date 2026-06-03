@@ -46,7 +46,7 @@
 </template>
 
 <script>
-import { apiPost, isLoggedIn, getAuthHeaders } from '../utils/api'
+import { adminApiPost, isAdmin, getAuthHeaders } from '../utils/api'
 
 export default {
   data() {
@@ -66,8 +66,9 @@ export default {
     }
   },
   mounted() {
-    if (!isLoggedIn()) {
-      this.$router.push('/login')
+    if (!isAdmin()) {
+      alert('无权限访问此页面')
+      this.$router.push('/')
     }
   },
   methods: {
@@ -95,12 +96,19 @@ export default {
           body: formData
         })
 
-        if (!response.ok) {
-          const data = await response.json()
-          throw new Error(data.message || '上传失败')
+        // 检查响应是否为JSON
+        const contentType = response.headers.get('content-type')
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text()
+          throw new Error(`服务器返回非JSON响应: ${text.substring(0, 100)}...`)
         }
 
         const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.message || '上传失败')
+        }
+
         this.form.image_url = data.file_url
         this.previewImage = data.file_url
       } catch (error) {
@@ -117,7 +125,7 @@ export default {
     },
     async createActivity() {
       try {
-        const response = await apiPost('/activities', this.form)
+        const response = await adminApiPost('/activities', this.form)
         
         if (!response.ok) {
           const data = await response.json()
