@@ -91,6 +91,12 @@ const routes = [
     name: 'VolunteerRecruitment',
     component: () => import('../views/VolunteerRecruitment.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/checkin',
+    name: 'CheckInScan',
+    component: () => import('../views/CheckInScan.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 

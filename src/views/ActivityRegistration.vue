@@ -86,15 +86,15 @@
             <div class="form-group">
               <label for="activity">报名项目 <span class="required">*</span></label>
               <select id="activity" v-model="form.activity" :class="{ error: errors.activity }" :disabled="!!activityId">
-                <option :value="null">请选择您发布的活动</option>
+                <option :value="null">请选择活动</option>
                 <option v-for="act in filteredActivities" :key="act.id" :value="act.id">
                   {{ act.title }} ({{ getCategoryText(act.category) }})
                 </option>
               </select>
               <span v-if="errors.activity" class="error-message">{{ errors.activity }}</span>
               <small v-if="filteredActivities.length === 0 && selectedCategory" style="color: #999;">该类型下没有活动</small>
-              <small v-else-if="filteredActivities.length === 0" style="color: #999;">请先选择活动类型</small>
-              <small v-else style="color: #999;">共 {{ filteredActivities.length }} 个您发布的活动</small>
+              <small v-else-if="filteredActivities.length === 0" style="color: #999;">暂无可用活动</small>
+              <small v-else style="color: #999;">共 {{ filteredActivities.length }} 个活动</small>
             </div>
             
             <div class="form-group">
@@ -239,7 +239,7 @@ export default {
     },
     async loadAvailableActivities() {
       try {
-        const response = await apiGet('/user/activities')
+        const response = await apiGet('/activities')
         if (!response.ok) {
           if (response.status === 401) {
             this.$router.push('/login')
@@ -341,7 +341,14 @@ export default {
       this.submitting = true
       
       try {
-        const response = await apiPost(`/activities/${this.form.activity}/join`, {})
+        const response = await apiPost(`/activities/${this.form.activity}/join`, {
+          name: this.form.name,
+          phone: this.form.phone,
+          email: this.form.email,
+          department: this.form.department,
+          studentId: this.form.studentId,
+          introduction: this.form.introduction
+        })
         
         const data = await response.json()
         
