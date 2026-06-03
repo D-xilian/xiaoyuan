@@ -268,6 +268,10 @@ def delete_activity(user, id):
     if activity.publisher_id != user.id:
         return jsonify({'message': '无权限删除此活动'}), 403
     
+    # 先删除关联数据
+    ActivityQRCode.query.filter_by(activity_id=id).delete()
+    CheckIn.query.filter_by(activity_id=id).delete()
+    
     db.session.delete(activity)
     db.session.commit()
     return jsonify({'message': '活动删除成功'}), 200
