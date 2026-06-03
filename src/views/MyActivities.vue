@@ -436,6 +436,7 @@ nav a {
   padding: 10px 20px;
   font-size: 14px;
   width: auto;
+  color: white;
 }
 
 .btn-confirm-delete:hover {
