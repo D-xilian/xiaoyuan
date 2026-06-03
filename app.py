@@ -6,6 +6,9 @@ import datetime
 import functools
 import os
 import uuid
+import io
+import base64
+import qrcode
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key'
@@ -74,6 +77,13 @@ class JoinActivity(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     activity_id = db.Column(db.Integer, db.ForeignKey('activity.id'), nullable=False)
     join_time = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    # 参与者信息
+    participant_name = db.Column(db.String(50), default='')
+    participant_phone = db.Column(db.String(20), default='')
+    participant_email = db.Column(db.String(100), default='')
+    participant_department = db.Column(db.String(50), default='')
+    participant_student_id = db.Column(db.String(20), default='')
+    participant_introduction = db.Column(db.Text, default='')
 
 class Collection(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -98,6 +108,21 @@ class Notification(db.Model):
     related_user_id = db.Column(db.Integer, nullable=True)
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+class ActivityQRCode(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    activity_id = db.Column(db.Integer, db.ForeignKey('activity.id'), nullable=False)
+    token = db.Column(db.String(64), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    activity = db.relationship('Activity', backref=db.backref('qrcodes', lazy=True))
+
+class CheckIn(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    activity_id = db.Column(db.Integer, db.ForeignKey('activity.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    checkin_time = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    activity = db.relationship('Activity', backref=db.backref('checkins', lazy=True))
+    user = db.relationship('User', backref=db.backref('checkins', lazy=True))
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -268,10 +293,20 @@ def join_activity(user, id):
     if not activity:
         return jsonify({'message': '活动不存在'}), 404
     
-    if JoinActivity.query.filter_by(user_id=user.id, activity_id=id).first():
-        return jsonify({'message': '已经报名此活动'}), 400
-    
-    new_join = JoinActivity(user_id=user.id, activity_id=id)
+    # 允许同一用户使用不同参与者信息多次报名，不做重复限制
+
+    data = request.get_json() or {}
+
+    new_join = JoinActivity(
+        user_id=user.id,
+        activity_id=id,
+        participant_name=data.get('name', ''),
+        participant_phone=data.get('phone', ''),
+        participant_email=data.get('email', ''),
+        participant_department=data.get('department', ''),
+        participant_student_id=data.get('studentId', ''),
+        participant_introduction=data.get('introduction', '')
+    )
     db.session.add(new_join)
     
     create_notification(
@@ -411,7 +446,13 @@ def get_all_registrations(user):
                 'username': join_user.username,
                 'activity_id': join.activity_id,
                 'activity_title': activity.title,
-                'join_time': join.join_time.strftime('%Y-%m-%d %H:%M:%S')
+                'join_time': join.join_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'participant_name': join.participant_name,
+                'participant_phone': join.participant_phone,
+                'participant_email': join.participant_email,
+                'participant_department': join.participant_department,
+                'participant_student_id': join.participant_student_id,
+                'participant_introduction': join.participant_introduction
             })
     return jsonify(registrations), 200
 
@@ -435,7 +476,13 @@ def get_activity_registrations(user, id):
                 'email': join_user.email,
                 'activity_id': join.activity_id,
                 'activity_title': activity.title,
-                'join_time': join.join_time.strftime('%Y-%m-%d %H:%M:%S')
+                'join_time': join.join_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'participant_name': join.participant_name,
+                'participant_phone': join.participant_phone,
+                'participant_email': join.participant_email,
+                'participant_department': join.participant_department,
+                'participant_student_id': join.participant_student_id,
+                'participant_introduction': join.participant_introduction
             })
     return jsonify(registrations), 200
 
@@ -461,7 +508,13 @@ def get_registration_detail(user, id):
         'email': join_user.email,
         'activity_id': join.activity_id,
         'activity_title': activity.title,
-        'join_time': join.join_time.strftime('%Y-%m-%d %H:%M:%S')
+        'join_time': join.join_time.strftime('%Y-%m-%d %H:%M:%S'),
+        'participant_name': join.participant_name,
+        'participant_phone': join.participant_phone,
+        'participant_email': join.participant_email,
+        'participant_department': join.participant_department,
+        'participant_student_id': join.participant_student_id,
+        'participant_introduction': join.participant_introduction
     }), 200
 
 @app.route('/api/registration/<int:id>/status', methods=['PUT'])
@@ -584,6 +637,118 @@ def mark_notification_read(user, id):
     notification.is_read = True
     db.session.commit()
     return jsonify({'message': '已标记为已读'}), 200
+
+
+@app.route('/api/activities/<int:id>/qrcode', methods=['GET'])
+@custom_login_required
+def get_activity_qrcode(user, id):
+    activity = Activity.query.get(id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+
+    # 只有活动发布者才能生成二维码
+    if activity.publisher_id != user.id:
+        return jsonify({'message': '只有活动发布者才能生成签到二维码'}), 403
+
+    qr = ActivityQRCode.query.filter_by(activity_id=id).first()
+    if not qr:
+        token = str(uuid.uuid4())
+        qr = ActivityQRCode(activity_id=id, token=token)
+        db.session.add(qr)
+        db.session.commit()
+
+    # 生成二维码图片
+    img = qrcode.make(qr.token)
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    img_base64 = base64.b64encode(buf.getvalue()).decode()
+
+    return jsonify({
+        'token': qr.token,
+        'qrcode_base64': f'data:image/png;base64,{img_base64}',
+        'created_at': qr.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    }), 200
+
+
+@app.route('/api/checkin', methods=['POST'])
+@custom_login_required
+def checkin(user):
+    data = request.get_json()
+    token = data.get('token')
+
+    if not token:
+        return jsonify({'message': '请提供签到码'}), 400
+
+    qr = ActivityQRCode.query.filter_by(token=token).first()
+    if not qr:
+        return jsonify({'message': '无效的签到码'}), 400
+
+    activity = Activity.query.get(qr.activity_id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+
+    # 验证用户已报名该活动
+    join_record = JoinActivity.query.filter_by(activity_id=qr.activity_id, user_id=user.id).first()
+    if not join_record and activity.publisher_id != user.id:
+        return jsonify({'message': '您尚未报名此活动，请先报名后再签到'}), 403
+
+    existing = CheckIn.query.filter_by(activity_id=qr.activity_id, user_id=user.id).first()
+    if existing:
+        return jsonify({'message': '您已签到过了'}), 400
+
+    checkin_record = CheckIn(activity_id=qr.activity_id, user_id=user.id)
+    db.session.add(checkin_record)
+    db.session.commit()
+
+    return jsonify({
+        'message': '签到成功',
+        'activity_title': activity.title,
+        'checkin_time': checkin_record.checkin_time.strftime('%Y-%m-%d %H:%M:%S')
+    }), 200
+
+
+@app.route('/api/activities/<int:id>/checkins', methods=['GET'])
+def get_activity_checkins(id):
+    activity = Activity.query.get(id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+
+    checkins = CheckIn.query.filter_by(activity_id=id).order_by(CheckIn.checkin_time.desc()).all()
+    return jsonify([{
+        'id': c.id,
+        'user_id': c.user_id,
+        'username': c.user.username,
+        'checkin_time': c.checkin_time.strftime('%Y-%m-%d %H:%M:%S')
+    } for c in checkins]), 200
+
+
+@app.route('/api/user/checkins', methods=['GET'])
+@custom_login_required
+def get_user_checkins(user):
+    checkins = CheckIn.query.filter_by(user_id=user.id).order_by(CheckIn.checkin_time.desc()).all()
+    return jsonify([{
+        'id': c.id,
+        'activity_id': c.activity_id,
+        'activity_title': c.activity.title,
+        'checkin_time': c.checkin_time.strftime('%Y-%m-%d %H:%M:%S')
+    } for c in checkins]), 200
+
+
+@app.route('/api/activities/<int:id>/join-status', methods=['GET'])
+@custom_login_required
+def get_join_status(user, id):
+    """检查当前用户是否已报名某活动"""
+    activity = Activity.query.get(id)
+    if not activity:
+        return jsonify({'message': '活动不存在'}), 404
+    join_record = JoinActivity.query.filter_by(activity_id=id, user_id=user.id).first()
+    is_publisher = (activity.publisher_id == user.id)
+    checkin_record = CheckIn.query.filter_by(activity_id=id, user_id=user.id).first()
+    return jsonify({
+        'joined': join_record is not None,
+        'is_publisher': is_publisher,
+        'checked_in': checkin_record is not None
+    }), 200
 
 
 def create_notification(user_id, type, message, activity_id=None, related_user_id=None):

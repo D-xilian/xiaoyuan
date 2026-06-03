@@ -4,6 +4,7 @@
       <h1>校园活动发布平台</h1>
       <nav>
         <router-link to="/">首页</router-link>
+<<<<<<< HEAD
         
         <!-- 管理员菜单 -->
         <router-link to="/admin/users" v-if="isLoggedIn && isAdmin">用户管理</router-link>
@@ -18,6 +19,14 @@
         <router-link to="/my-join" v-if="isLoggedIn && !isAdmin">我的报名</router-link>
         
         <!-- 通用菜单 -->
+=======
+        <router-link to="/activity/create" v-if="isLoggedIn">创建活动</router-link>
+        <router-link to="/my-activities" v-if="isLoggedIn">我发布的活动</router-link>
+        <router-link to="/activity/register" v-if="isLoggedIn">报名活动</router-link>
+        <router-link to="/registration/list" v-if="isLoggedIn">报名列表</router-link>
+        <router-link to="/volunteer/recruitment" v-if="isLoggedIn">志愿者招募</router-link>
+        <router-link to="/checkin" v-if="isLoggedIn">签到</router-link>
+>>>>>>> origin/main
         <router-link to="/login" v-if="!isLoggedIn">登录</router-link>
         <router-link to="/register" v-if="!isLoggedIn">注册</router-link>
         <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
@@ -27,6 +36,29 @@
     </header>
     
     <main class="main">
+      <!-- 签到入口区域 -->
+      <div v-if="isLoggedIn" class="checkin-section">
+        <div class="checkin-section-header">
+          <h2>📱 活动签到</h2>
+          <router-link to="/checkin" class="btn btn-checkin-go">去签到</router-link>
+        </div>
+        <div v-if="joinedActivities.length > 0" class="joined-activities">
+          <div v-for="act in joinedActivities" :key="act.id" class="joined-item">
+            <div class="joined-info">
+              <p class="joined-title">{{ act.title }}</p>
+              <p class="joined-time">{{ act.time }}</p>
+            </div>
+            <div class="joined-actions">
+              <router-link :to="`/activity/${act.id}`" class="btn-checkin-sm">签到</router-link>
+            </div>
+          </div>
+        </div>
+        <div v-else class="no-joined">
+          <p>您还没有报名活动，报名后才能签到哦</p>
+          <router-link to="/activity/register" class="btn btn-join-link">去报名</router-link>
+        </div>
+      </div>
+
       <!-- 活动列表 -->
       <div class="activities-section">
         <h2>所有活动</h2>
@@ -69,6 +101,7 @@ export default {
       isLoggedIn: false,
       isAdmin: false,
       activities: [],
+      joinedActivities: [],
       loading: false,
       error: ''
     }
@@ -76,11 +109,25 @@ export default {
   mounted() {
     this.checkLoginStatus()
     this.loadActivities()
+    if (this.isLoggedIn) {
+      this.loadJoinedActivities()
+    }
   },
   methods: {
     checkLoginStatus() {
       this.isLoggedIn = isLoggedIn()
       this.isAdmin = isAdmin()
+    },
+    async loadJoinedActivities() {
+      try {
+        const response = await apiGet('/user/join')
+        if (response.ok) {
+          const data = await response.json()
+          this.joinedActivities = data
+        }
+      } catch (error) {
+        console.error('加载已报名活动失败:', error)
+      }
     },
     async loadActivities() {
       this.loading = true
@@ -137,6 +184,103 @@ nav a {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+/* 签到区域样式 */
+.checkin-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 30px;
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.checkin-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.checkin-section-header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.btn-checkin-go {
+  background: white;
+  color: #667eea;
+  padding: 8px 20px;
+  border-radius: 20px;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 14px;
+  transition: transform 0.2s;
+}
+
+.btn-checkin-go:hover {
+  transform: scale(1.05);
+}
+
+.joined-activities {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.joined-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255,255,255,0.15);
+  padding: 12px 16px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.joined-title {
+  font-weight: bold;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.joined-time {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.btn-checkin-sm {
+  background: white;
+  color: #667eea;
+  padding: 6px 16px;
+  border-radius: 15px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.no-joined {
+  text-align: center;
+  padding: 20px;
+}
+
+.no-joined p {
+  margin-bottom: 12px;
+  opacity: 0.9;
+  font-size: 14px;
+}
+
+.btn-join-link {
+  display: inline-block;
+  background: white;
+  color: #667eea;
+  padding: 8px 24px;
+  border-radius: 20px;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 14px;
 }
 
 /* 活动列表部分样式 */
