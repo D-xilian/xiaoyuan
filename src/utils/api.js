@@ -28,6 +28,19 @@ export async function apiPost(url, data, method = 'POST') {
     headers: getAuthHeaders(),
     body: JSON.stringify(data)
   })
+  
+  // 检查响应是否为JSON
+  const contentType = response.headers.get('content-type')
+  if (!contentType || !contentType.includes('application/json')) {
+    // 如果不是JSON，尝试读取文本内容并返回错误
+    const text = await response.text()
+    return {
+      ok: false,
+      status: response.status,
+      json: async () => ({ message: `服务器返回非JSON响应: ${text.substring(0, 100)}...` })
+    }
+  }
+  
   return response
 }
 
@@ -87,4 +100,56 @@ export function getCurrentUser() {
 
 export function isLoggedIn() {
   return !!localStorage.getItem('user')
+}
+
+// 检查用户是否为管理员
+export function isAdmin() {
+  const user = getCurrentUser()
+  return user && user.role === 'admin'
+}
+
+// 检查用户是否为普通用户
+export function isUser() {
+  const user = getCurrentUser()
+  return user && user.role === 'user'
+}
+
+// 获取用户角色
+export function getUserRole() {
+  const user = getCurrentUser()
+  return user ? user.role : null
+}
+
+// 管理员API调用
+export async function adminApiGet(url) {
+  if (!isAdmin()) {
+    return {
+      ok: false,
+      status: 403,
+      json: async () => ({ message: '无权限访问，需要管理员权限' })
+    }
+  }
+  return await apiGet(url)
+}
+
+export async function adminApiPost(url, data) {
+  if (!isAdmin()) {
+    return {
+      ok: false,
+      status: 403,
+      json: async () => ({ message: '无权限访问，需要管理员权限' })
+    }
+  }
+  return await apiPost(url, data)
+}
+
+export async function adminApiPut(url, data) {
+  if (!isAdmin()) {
+    return {
+      ok: false,
+      status: 403,
+      json: async () => ({ message: '无权限访问，需要管理员权限' })
+    }
+  }
+  return await apiPut(url, data)
 }

@@ -42,12 +42,24 @@ def custom_login_required(f):
         return f(user, *args, **kwargs)
     return decorated_function
 
+def admin_required(f):
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_user_from_request()
+        if not user:
+            return jsonify({'message': '请先登录'}), 401
+        if user.role != 'admin':
+            return jsonify({'message': '无权限访问，需要管理员权限'}), 403
+        return f(user, *args, **kwargs)
+    return decorated_function
+
 # 数据库模型
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
+    role = db.Column(db.String(20), nullable=False, default='user')  # user=普通用户, admin=管理员
 
 class Activity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -147,7 +159,15 @@ def login():
         return jsonify({'message': '用户名或密码错误'}), 401
     
     login_user(user)
-    return jsonify({'message': '登录成功', 'user': {'id': user.id, 'username': user.username, 'email': user.email}}), 200
+    return jsonify({
+        'message': '登录成功',
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'role': user.role
+        }
+    }), 200
 
 @app.route('/api/logout', methods=['POST'])
 @custom_login_required
@@ -169,7 +189,7 @@ def get_activities():
     } for activity in activities]), 200
 
 @app.route('/api/activities', methods=['POST'])
-@custom_login_required
+@admin_required
 def create_activity(user):
     data = request.get_json()
     title = data.get('title')
@@ -239,14 +259,11 @@ def get_activity(id):
     }), 200
 
 @app.route('/api/activities/<int:id>', methods=['PUT'])
-@custom_login_required
+@admin_required
 def update_activity(user, id):
     activity = Activity.query.get(id)
     if not activity:
         return jsonify({'message': '活动不存在'}), 404
-    
-    if activity.publisher_id != user.id:
-        return jsonify({'message': '无权限修改此活动'}), 403
     
     data = request.get_json()
     activity.title = data.get('title', activity.title)
@@ -259,14 +276,11 @@ def update_activity(user, id):
     return jsonify({'message': '活动更新成功'}), 200
 
 @app.route('/api/activities/<int:id>', methods=['DELETE'])
-@custom_login_required
+@admin_required
 def delete_activity(user, id):
     activity = Activity.query.get(id)
     if not activity:
         return jsonify({'message': '活动不存在'}), 404
-    
-    if activity.publisher_id != user.id:
-        return jsonify({'message': '无权限删除此活动'}), 403
     
     db.session.delete(activity)
     db.session.commit()
@@ -567,7 +581,16 @@ def update_user_profile(user, user_id):
         user.password = new_password
     
     db.session.commit()
-    return jsonify({'message': '更新成功'}), 200
+    
+    return jsonify({
+        'message': '个人信息更新成功',
+        'user': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'role': user.role
+        }
+    }), 200
 
 
 @app.route('/api/notifications/unread', methods=['GET'])
@@ -743,6 +766,89 @@ def create_notification(user_id, type, message, activity_id=None, related_user_i
     except Exception as e:
         print(f'[通知] 创建失败: {e}')
         db.session.rollback()
+
+
+# ==================== 管理员 API ====================
+
+@app.route('/api/admin/users', methods=['GET'])
+@admin_required
+def get_all_users(admin):
+    """获取所有用户列表（仅管理员可访问）"""
+    users = User.query.all()
+    return jsonify([{
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'role': user.role
+    } for user in users]), 200
+
+@app.route('/api/admin/users/<int:user_id>/role', methods=['PUT'])
+@admin_required
+def update_user_role(admin, user_id):
+    """更新用户角色（仅管理员可访问）"""
+    if admin.id == user_id:
+        return jsonify({'message': '不能修改自己的角色'}), 400
+    
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'message': '用户不存在'}), 404
+    
+    data = request.get_json()
+    new_role = data.get('role')
+    
+    if new_role not in ['user', 'admin']:
+        return jsonify({'message': '无效的角色值'}), 400
+    
+    user.role = new_role
+    db.session.commit()
+    
+    return jsonify({'message': f'已将 {user.username} 的角色更新为 {new_role}'}), 200
+
+@app.route('/api/admin/activities', methods=['GET'])
+@admin_required
+def get_all_activities_admin(admin):
+    """获取所有活动列表（仅管理员可访问）"""
+    activities = Activity.query.all()
+    return jsonify([{
+        'id': activity.id,
+        'title': activity.title,
+        'description': activity.description,
+        'time': activity.time.strftime('%Y-%m-%d %H:%M'),
+        'location': activity.location,
+        'category': activity.category,
+        'publisher': activity.publisher.username,
+        'participants_count': JoinActivity.query.filter_by(activity_id=activity.id).count()
+    } for activity in activities]), 200
+
+@app.route('/api/admin/volunteers', methods=['GET'])
+@admin_required
+def get_all_volunteers(admin):
+    """获取所有志愿者列表（仅管理员可访问）"""
+    # 获取所有报名过活动的用户
+    joins = JoinActivity.query.all()
+    volunteer_data = {}
+    
+    for join in joins:
+        user = User.query.get(join.user_id)
+        activity = Activity.query.get(join.activity_id)
+        if user and activity:
+            if user.id not in volunteer_data:
+                volunteer_data[user.id] = {
+                    'user_id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'activities_count': 0,
+                    'activities': []
+                }
+            volunteer_data[user.id]['activities_count'] += 1
+            volunteer_data[user.id]['activities'].append({
+                'id': activity.id,
+                'title': activity.title,
+                'time': activity.time.strftime('%Y-%m-%d %H:%M'),
+                'location': activity.location
+            })
+    
+    return jsonify(list(volunteer_data.values())), 200
 
 
 @app.route('/uploads/<filename>')

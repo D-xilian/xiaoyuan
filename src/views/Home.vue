@@ -4,12 +4,20 @@
       <h1>校园活动发布平台</h1>
       <nav>
         <router-link to="/">首页</router-link>
-        <router-link to="/activity/create" v-if="isLoggedIn">创建活动</router-link>
-        <router-link to="/my-activities" v-if="isLoggedIn">我发布的活动</router-link>
-        <router-link to="/activity/register" v-if="isLoggedIn">报名活动</router-link>
-        <router-link to="/registration/list" v-if="isLoggedIn">报名列表</router-link>
-        <router-link to="/volunteer/recruitment" v-if="isLoggedIn">志愿者招募</router-link>
-        <router-link to="/checkin" v-if="isLoggedIn">签到</router-link>
+        
+        <!-- 管理员菜单 -->
+        <router-link to="/admin/users" v-if="isLoggedIn && isAdmin">用户管理</router-link>
+        <router-link to="/admin/volunteers" v-if="isLoggedIn && isAdmin">志愿者管理</router-link>
+        <router-link to="/activity/create" v-if="isLoggedIn && isAdmin">创建活动</router-link>
+        <router-link to="/admin/activities" v-if="isLoggedIn && isAdmin">管理活动</router-link>
+        <router-link to="/registration/list" v-if="isLoggedIn && isAdmin">查看报名</router-link>
+        
+        <!-- 普通用户菜单 -->
+        <router-link to="/activity/register" v-if="isLoggedIn && !isAdmin">报名活动</router-link>
+        <router-link to="/volunteer/recruitment" v-if="isLoggedIn && !isAdmin">志愿者招募</router-link>
+        <router-link to="/my-join" v-if="isLoggedIn && !isAdmin">我的报名</router-link>
+        
+        <!-- 通用菜单 -->
         <router-link to="/login" v-if="!isLoggedIn">登录</router-link>
         <router-link to="/register" v-if="!isLoggedIn">注册</router-link>
         <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
@@ -72,7 +80,7 @@
 </template>
 
 <script>
-import { apiGet, isLoggedIn } from '../utils/api'
+import { apiGet, isLoggedIn, isAdmin } from '../utils/api'
 import NotificationBell from '../components/NotificationBell.vue'
 
 export default {
@@ -82,6 +90,7 @@ export default {
   data() {
     return {
       isLoggedIn: false,
+      isAdmin: false,
       activities: [],
       joinedActivities: [],
       loading: false,
@@ -98,6 +107,7 @@ export default {
   methods: {
     checkLoginStatus() {
       this.isLoggedIn = isLoggedIn()
+      this.isAdmin = isAdmin()
     },
     async loadJoinedActivities() {
       try {
@@ -134,6 +144,7 @@ export default {
     logout() {
       localStorage.removeItem('user')
       this.isLoggedIn = false
+      this.isAdmin = false
       this.$router.push('/login')
     }
   }

@@ -552,31 +552,68 @@ export default {
       this.error = ''
       this.success = ''
       
-      if (this.editForm.newPassword && this.editForm.newPassword !== this.editForm.confirmNewPassword) {
-        this.error = '两次输入的新密码不一致'
-        return
-      }
-      
-      if (this.editForm.newPassword && this.editForm.newPassword.length < 6) {
-        this.error = '新密码长度不能少于6位'
-        return
+      // 如果填写了新密码，验证新密码
+      if (this.editForm.newPassword) {
+        if (!this.editForm.currentPassword) {
+          this.error = '请输入当前密码以验证身份'
+          return
+        }
+        
+        if (this.editForm.newPassword.length < 6) {
+          this.error = '新密码长度不能少于6位'
+          return
+        }
+        
+        if (this.editForm.newPassword !== this.editForm.confirmNewPassword) {
+          this.error = '两次输入的新密码不一致'
+          return
+        }
       }
       
       this.loading = true
       try {
-        this.user.email = this.editForm.email
-        if (this.editForm.newPassword) {
-          this.user.password = this.editForm.newPassword
+        // 准备更新数据
+        const updateData = {
+          email: this.editForm.email
         }
-        localStorage.setItem('user', JSON.stringify(this.user))
         
-        this.success = '个人信息更新成功！'
-        setTimeout(() => {
-          this.showEditModal = false
-          this.success = ''
-        }, 1500)
+        // 如果要修改密码，添加密码相关字段
+        if (this.editForm.newPassword) {
+          updateData.currentPassword = this.editForm.currentPassword
+          updateData.newPassword = this.editForm.newPassword
+        }
+        
+        // 调用后端API更新用户信息
+        const response = await fetch(`http://localhost:5000/api/user/${this.user.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-ID': this.user.id.toString()
+          },
+          body: JSON.stringify(updateData)
+        })
+        
+        const data = await response.json()
+        
+        if (response.ok) {
+          // 更新本地存储的用户信息
+          const updatedUser = { ...this.user }
+          updatedUser.email = this.editForm.email
+          localStorage.setItem('user', JSON.stringify(updatedUser))
+          
+          // 更新当前用户对象
+          this.user = updatedUser
+          
+          this.success = '个人信息更新成功！'
+          setTimeout(() => {
+            this.showEditModal = false
+            this.success = ''
+          }, 1500)
+        } else {
+          this.error = data.message || '更新失败，请检查当前密码是否正确'
+        }
       } catch (err) {
-        this.error = '更新失败，请稍后重试'
+        this.error = '网络错误，请稍后重试'
       } finally {
         this.loading = false
       }

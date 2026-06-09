@@ -93,6 +93,26 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    // 你分支添加的管理页面
+    path: '/admin/users',
+    name: 'AdminUserManagement',
+    component: () => import('../views/AdminUserManagement.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin/volunteers',
+    name: 'AdminVolunteerManagement',
+    component: () => import('../views/AdminVolunteerManagement.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin/activities',
+    name: 'AdminActivityManagement',
+    component: () => import('../views/AdminActivityManagement.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    // main 分支添加的签到页面
     path: '/checkin',
     name: 'CheckInScan',
     component: () => import('../views/CheckInScan.vue'),
