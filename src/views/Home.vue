@@ -4,7 +4,6 @@
       <h1>校园活动发布平台</h1>
       <nav>
         <router-link to="/">首页</router-link>
-<<<<<<< HEAD
         
         <!-- 管理员菜单 -->
         <router-link to="/admin/users" v-if="isLoggedIn && isAdmin">用户管理</router-link>
@@ -19,14 +18,6 @@
         <router-link to="/my-join" v-if="isLoggedIn && !isAdmin">我的报名</router-link>
         
         <!-- 通用菜单 -->
-=======
-        <router-link to="/activity/create" v-if="isLoggedIn">创建活动</router-link>
-        <router-link to="/my-activities" v-if="isLoggedIn">我发布的活动</router-link>
-        <router-link to="/activity/register" v-if="isLoggedIn">报名活动</router-link>
-        <router-link to="/registration/list" v-if="isLoggedIn">报名列表</router-link>
-        <router-link to="/volunteer/recruitment" v-if="isLoggedIn">志愿者招募</router-link>
-        <router-link to="/checkin" v-if="isLoggedIn">签到</router-link>
->>>>>>> origin/main
         <router-link to="/login" v-if="!isLoggedIn">登录</router-link>
         <router-link to="/register" v-if="!isLoggedIn">注册</router-link>
         <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
