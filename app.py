@@ -86,6 +86,32 @@ class JoinActivity(db.Model):
     participant_student_id = db.Column(db.String(20), default='')
     participant_introduction = db.Column(db.Text, default='')
 
+class VolunteerRegistration(db.Model):
+    """志愿者报名表 - 独立于活动报名"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref=db.backref('volunteer_registrations', lazy=True))
+    
+    # 关联的活动
+    activity_id = db.Column(db.Integer, db.ForeignKey('activity.id'), nullable=False)
+    activity = db.relationship('Activity', backref=db.backref('volunteer_registrations', lazy=True))
+    
+    # 志愿者个人信息
+    name = db.Column(db.String(50), nullable=False)
+    gender = db.Column(db.String(10), nullable=False)
+    student_id = db.Column(db.String(20), nullable=False)
+    department = db.Column(db.String(50), nullable=False)
+    phone = db.Column(db.String(20), default='')
+    email = db.Column(db.String(100), default='')
+    
+    # 报名状态
+    status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
+    registration_time = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    
+    # 管理员备注
+    admin_note = db.Column(db.Text, default='')
+    review_time = db.Column(db.DateTime, nullable=True)
+
 class Collection(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -386,6 +412,234 @@ def uncollect_activity(user, id):
     db.session.delete(collection)
     db.session.commit()
     return jsonify({'message': '取消收藏成功'}), 200
+
+# ==================== 志愿者报名API（独立于活动报名）====================
+
+@app.route('/api/volunteer/register', methods=['POST'])
+@custom_login_required
+def register_volunteer(user):
+    """志愿者报名 - 支持同时报名多个活动"""
+    data = request.get_json() or {}
+    
+    # 验证必填字段
+    required_fields = ['name', 'gender', 'student_id', 'department', 'activity_ids']
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({'message': f'缺少必填字段: {field}'}), 400
+    
+    # 验证活动列表是否为数组
+    activity_ids = data.get('activity_ids', [])
+    if not isinstance(activity_ids, list) or len(activity_ids) == 0:
+        return jsonify({'message': '请至少选择一个活动'}), 400
+    
+    # 验证每个活动是否存在，并过滤重复和已报名的活动
+    valid_activity_ids = []
+    for activity_id in activity_ids:
+        # 验证活动是否存在
+        activity = Activity.query.get(activity_id)
+        if not activity:
+            return jsonify({'message': f'活动ID {activity_id} 不存在'}), 404
+        
+        # 检查是否已报名该活动
+        existing = VolunteerRegistration.query.filter_by(user_id=user.id, activity_id=activity_id).first()
+        if existing:
+            continue  # 跳过已报名的活动
+        
+        valid_activity_ids.append(activity_id)
+    
+    if len(valid_activity_ids) == 0:
+        return jsonify({'message': '所有选中的活动都已报名过'}), 400
+    
+    # 创建志愿者报名记录
+    for activity_id in valid_activity_ids:
+        new_registration = VolunteerRegistration(
+            user_id=user.id,
+            activity_id=activity_id,
+            name=data.get('name'),
+            gender=data.get('gender'),
+            student_id=data.get('student_id'),
+            department=data.get('department'),
+            phone=data.get('phone', ''),
+            email=data.get('email', ''),
+            status='pending'
+        )
+        db.session.add(new_registration)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': f'志愿者报名成功，已为您报名 {len(valid_activity_ids)} 个活动，等待审核',
+        'registered_count': len(valid_activity_ids)
+    }), 200
+
+@app.route('/api/volunteer/my-registration', methods=['GET'])
+@custom_login_required
+def get_my_volunteer_registration(user):
+    """获取当前用户的志愿者报名信息"""
+    activity_id = request.args.get('activity_id', type=int)
+    
+    query = VolunteerRegistration.query.filter_by(user_id=user.id)
+    if activity_id:
+        query = query.filter_by(activity_id=activity_id)
+    
+    registrations = query.order_by(VolunteerRegistration.registration_time.desc()).all()
+    
+    if not registrations:
+        return jsonify({'message': '未找到志愿者报名信息'}), 404
+    
+    result = []
+    for reg in registrations:
+        activity = Activity.query.get(reg.activity_id)
+        result.append({
+            'id': reg.id,
+            'activity_id': reg.activity_id,
+            'activity_title': activity.title if activity else '未知活动',
+            'name': reg.name,
+            'gender': reg.gender,
+            'student_id': reg.student_id,
+            'department': reg.department,
+            'phone': reg.phone,
+            'email': reg.email,
+            'status': reg.status,
+            'registration_time': reg.registration_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'admin_note': reg.admin_note
+        })
+    
+    return jsonify(result[0] if len(result) == 1 else result), 200
+
+@app.route('/api/volunteer/cancel', methods=['POST'])
+@custom_login_required
+def cancel_volunteer_registration(user):
+    """取消志愿者报名"""
+    registration = VolunteerRegistration.query.filter_by(user_id=user.id).first()
+    if not registration:
+        return jsonify({'message': '未找到志愿者报名信息'}), 404
+    
+    db.session.delete(registration)
+    db.session.commit()
+    
+    return jsonify({'message': '志愿者报名已取消'}), 200
+
+# ==================== 管理员志愿者管理API ====================
+
+@app.route('/api/admin/volunteer-registrations', methods=['GET'])
+@admin_required
+def get_all_volunteer_registrations(admin):
+    """获取所有志愿者报名列表（管理员）"""
+    status = request.args.get('status', 'all')
+    
+    query = VolunteerRegistration.query
+    if status != 'all':
+        query = query.filter_by(status=status)
+    
+    registrations = query.order_by(VolunteerRegistration.registration_time.desc()).all()
+    
+    result = []
+    for reg in registrations:
+        user = User.query.get(reg.user_id)
+        activity = Activity.query.get(reg.activity_id)
+        result.append({
+            'id': reg.id,
+            'user_id': reg.user_id,
+            'username': user.username if user else '未知用户',
+            'activity_id': reg.activity_id,
+            'activity_title': activity.title if activity else '未知活动',
+            'activity_time': activity.time.strftime('%Y-%m-%d %H:%M') if activity else '',
+            'activity_location': activity.location if activity else '',
+            'name': reg.name,
+            'gender': reg.gender,
+            'student_id': reg.student_id,
+            'department': reg.department,
+            'phone': reg.phone,
+            'email': reg.email,
+            'status': reg.status,
+            'registration_time': reg.registration_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'admin_note': reg.admin_note,
+            'review_time': reg.review_time.strftime('%Y-%m-%d %H:%M:%S') if reg.review_time else None
+        })
+    
+    return jsonify(result), 200
+
+@app.route('/api/admin/volunteer-registrations/<int:id>/status', methods=['PUT'])
+@admin_required
+def update_volunteer_status(admin, id):
+    """更新志愿者报名状态（管理员）"""
+    registration = VolunteerRegistration.query.get(id)
+    if not registration:
+        return jsonify({'message': '志愿者报名记录不存在'}), 404
+    
+    data = request.get_json() or {}
+    new_status = data.get('status')
+    admin_note = data.get('admin_note', '')
+    
+    if new_status not in ['pending', 'approved', 'rejected']:
+        return jsonify({'message': '无效的状态值'}), 400
+    
+    registration.status = new_status
+    registration.admin_note = admin_note
+    registration.review_time = datetime.datetime.utcnow()
+    db.session.commit()
+    
+    # 发送通知给用户
+    status_text = {'pending': '待审核', 'approved': '已通过', 'rejected': '已拒绝'}
+    create_notification(
+        user_id=registration.user_id,
+        type='volunteer_status',
+        message=f'您的志愿者报名申请已被{status_text.get(new_status, new_status)}',
+        related_user_id=admin.id
+    )
+    
+    return jsonify({'message': '状态更新成功'}), 200
+
+@app.route('/api/admin/volunteer-statistics', methods=['GET'])
+@admin_required
+def get_volunteer_statistics(admin):
+    """获取志愿者报名统计数据（管理员）"""
+    total = VolunteerRegistration.query.count()
+    pending = VolunteerRegistration.query.filter_by(status='pending').count()
+    approved = VolunteerRegistration.query.filter_by(status='approved').count()
+    rejected = VolunteerRegistration.query.filter_by(status='rejected').count()
+    
+    # 按院系统计
+    dept_stats = db.session.query(
+        VolunteerRegistration.department,
+        db.func.count(VolunteerRegistration.id).label('count')
+    ).group_by(VolunteerRegistration.department).all()
+    
+    # 按性别统计
+    gender_stats = db.session.query(
+        VolunteerRegistration.gender,
+        db.func.count(VolunteerRegistration.id).label('count')
+    ).group_by(VolunteerRegistration.gender).all()
+    
+    # 按活动统计
+    activity_stats = db.session.query(
+        VolunteerRegistration.activity_id,
+        db.func.count(VolunteerRegistration.id).label('count')
+    ).group_by(VolunteerRegistration.activity_id).all()
+    
+    # 获取活动名称
+    activity_names = {}
+    for activity_id, _ in activity_stats:
+        activity = Activity.query.get(activity_id)
+        if activity:
+            activity_names[activity_id] = activity.title
+    
+    return jsonify({
+        'overview': {
+            'total': total,
+            'pending': pending,
+            'approved': approved,
+            'rejected': rejected
+        },
+        'department_stats': [{'department': d, 'count': c} for d, c in dept_stats],
+        'gender_stats': [{'gender': g, 'count': c} for g, c in gender_stats],
+        'activity_stats': [{
+            'activity_id': a_id, 
+            'activity_title': activity_names.get(a_id, '未知活动'),
+            'count': c
+        } for a_id, c in activity_stats]
+    }), 200
 
 @app.route('/api/activities/<int:id>/comment', methods=['POST'])
 @custom_login_required
@@ -864,6 +1118,61 @@ def get_all_volunteers(admin):
             })
     
     return jsonify(list(volunteer_data.values())), 200
+
+@app.route('/api/admin/dashboard-statistics', methods=['GET'])
+@admin_required
+def get_dashboard_statistics(admin):
+    """获取仪表盘统计数据（仅管理员可访问）"""
+    # 活动统计
+    total_activities = Activity.query.count()
+    
+    # 活动报名统计
+    total_activity_registrations = JoinActivity.query.count()
+    
+    # 志愿者报名统计
+    total_volunteer_registrations = VolunteerRegistration.query.count()
+    volunteer_pending = VolunteerRegistration.query.filter_by(status='pending').count()
+    volunteer_approved = VolunteerRegistration.query.filter_by(status='approved').count()
+    volunteer_rejected = VolunteerRegistration.query.filter_by(status='rejected').count()
+    
+    # 用户统计
+    total_users = User.query.count()
+    
+    # 活动分类统计
+    category_stats = db.session.query(
+        Activity.category,
+        db.func.count(Activity.id).label('count')
+    ).group_by(Activity.category).all()
+    category_dict = {cat: cnt for cat, cnt in category_stats}
+    
+    # 计算趋势（模拟数据，实际应对比历史数据）
+    def calculate_trend(current, base=10):
+        if base == 0:
+            return 0
+        return round(((current - base) / base) * 100, 1)
+    
+    return jsonify({
+        'activities': {
+            'total': total_activities,
+            'trend': calculate_trend(total_activities)
+        },
+        'activity_registrations': {
+            'total': total_activity_registrations,
+            'trend': calculate_trend(total_activity_registrations)
+        },
+        'volunteer_registrations': {
+            'total': total_volunteer_registrations,
+            'pending': volunteer_pending,
+            'approved': volunteer_approved,
+            'rejected': volunteer_rejected,
+            'trend': calculate_trend(total_volunteer_registrations)
+        },
+        'users': {
+            'total': total_users,
+            'trend': calculate_trend(total_users)
+        },
+        'activity_categories': category_dict
+    }), 200
 
 
 @app.route('/uploads/<filename>')

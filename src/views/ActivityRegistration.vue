@@ -1,19 +1,38 @@
 <template>
   <div class="registration-page">
+    <!-- 导航栏 - 与首页保持一致 -->
     <header class="header">
-      <h1>校园活动报名</h1>
+      <h1>校园活动发布平台</h1>
       <nav>
         <router-link to="/">首页</router-link>
-        <router-link to="/my-join" v-if="isLoggedIn">我的报名</router-link>
+        
+        <!-- 管理员菜单 -->
+        <router-link to="/admin/users" v-if="isLoggedIn && isAdmin">用户管理</router-link>
+        <router-link to="/admin/volunteers" v-if="isLoggedIn && isAdmin">志愿者管理</router-link>
+        <router-link to="/activity/create" v-if="isLoggedIn && isAdmin">创建活动</router-link>
+        <router-link to="/admin/activities" v-if="isLoggedIn && isAdmin">管理活动</router-link>
+        <router-link to="/registration/list" v-if="isLoggedIn && isAdmin">查看报名</router-link>
+        
+        <!-- 普通用户菜单 -->
+        <router-link to="/activity/register" v-if="isLoggedIn && !isAdmin">报名活动</router-link>
+        <router-link to="/volunteer/recruitment" v-if="isLoggedIn && !isAdmin">志愿者招募</router-link>
+        <router-link to="/my-join" v-if="isLoggedIn && !isAdmin">我的报名</router-link>
+        
+        <!-- 通用菜单 -->
         <router-link to="/login" v-if="!isLoggedIn">登录</router-link>
+        <router-link to="/register" v-if="!isLoggedIn">注册</router-link>
         <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
+        <NotificationBell v-if="isLoggedIn" />
         <a v-if="isLoggedIn" @click="logout" class="logout-link">退出登录</a>
       </nav>
     </header>
     
     <main class="main">
-      <div class="registration-container">
-        <h2>{{ activityName || '活动报名' }}</h2>
+      <!-- 页面标题区域 -->
+      <div class="page-header-section">
+        <div class="header-icon">📋</div>
+        <h1 class="page-title">活动报名</h1>
+        <p class="page-subtitle">选择您感兴趣的活动，开启精彩校园生活</p>
         
         <!-- 活动容量信息 -->
         <div v-if="selectedActivity" class="activity-capacity-info">
@@ -29,49 +48,29 @@
           <span class="success-icon">✓</span>
           <p>报名成功！您的报名信息已提交。</p>
         </div>
-        
-        <form @submit.prevent="submitForm" class="registration-form" :class="{ submitted: submitSuccess }">
-          <div class="form-section">
-            <h3>基本信息</h3>
-            
-            <div class="form-group">
-              <label for="name">姓名 <span class="required">*</span></label>
-              <input 
-                type="text" 
-                id="name" 
-                v-model="form.name" 
-                :class="{ error: errors.name }"
-                placeholder="请输入您的姓名"
-                maxlength="50"
-              >
-              <span v-if="errors.name" class="error-message">{{ errors.name }}</span>
+      </div>
+
+      <div class="registration-container">
+        <div class="form-card">
+          <div class="card-header">
+            <div class="header-badge">
+              <span class="badge-icon">📋</span>
+              <span class="badge-text">活动报名</span>
             </div>
-            
-            <div class="form-group">
-              <label for="phone">联系方式 <span class="required">*</span></label>
-              <input 
-                type="tel" 
-                id="phone" 
-                v-model="form.phone" 
-                :class="{ error: errors.phone }"
-                placeholder="请输入您的手机号码"
-                maxlength="11"
-              >
-              <span v-if="errors.phone" class="error-message">{{ errors.phone }}</span>
+            <h3>{{ activityName || '选择活动报名' }}</h3>
+            <p>请填写以下信息完成活动报名</p>
+          </div>
+          
+          <!-- 成功提示 -->
+          <div v-if="submitSuccess" class="success-alert">
+            <div class="success-icon-wrapper">
+              <span class="success-icon">✓</span>
             </div>
-            
-            <div class="form-group">
-              <label for="email">邮箱</label>
-              <input 
-                type="email" 
-                id="email" 
-                v-model="form.email" 
-                :class="{ error: errors.email }"
-                placeholder="请输入您的邮箱（选填）"
-                maxlength="100"
-              >
-              <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
+            <div class="success-content">
+              <h4>报名成功！</h4>
+              <p>您的报名信息已提交，活动详情将通过通知告知您。</p>
             </div>
+            <button class="close-btn" @click="resetForm">×</button>
           </div>
           
           <div class="form-section">
@@ -104,72 +103,100 @@
               <small v-else style="color: #999;">共 {{ filteredActivities.length }} 个活动</small>
             </div>
             
-            <div class="form-group">
-              <label for="department">所在院系</label>
-              <input 
-                type="text" 
-                id="department" 
-                v-model="form.department" 
-                placeholder="请输入您的院系（选填）"
-                maxlength="50"
-              >
+            <div class="form-section">
+              <div class="section-title">
+                <span class="section-icon">🎯</span>
+                <h3>选择活动</h3>
+                <span class="section-badge">必填</span>
+              </div>
+              
+              <div class="form-group">
+                <label for="category">活动类型筛选</label>
+                <select id="category" v-model="selectedCategory">
+                  <option value="">全部类型</option>
+                  <option value="sports">体育运动</option>
+                  <option value="academic">学术科技</option>
+                  <option value="art">文化艺术</option>
+                  <option value="social">社会实践</option>
+                  <option value="entertainment">娱乐休闲</option>
+                  <option value="other">其他</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="activity">报名项目 <span class="required">*</span></label>
+                <select id="activity" v-model="form.activity" :class="{ error: errors.activity }" :disabled="!!activityId">
+                  <option :value="null">请选择活动</option>
+                  <option v-for="act in filteredActivities" :key="act.id" :value="act.id">
+                    {{ act.title }} ({{ getCategoryText(act.category) }})
+                  </option>
+                </select>
+                <span v-if="errors.activity" class="error-message">{{ errors.activity }}</span>
+                <small v-if="filteredActivities.length === 0 && selectedCategory" style="color: #999;">该类型下没有活动</small>
+                <small v-else-if="filteredActivities.length === 0" style="color: #999;">暂无可用活动</small>
+                <small v-else style="color: #999;">共 {{ filteredActivities.length }} 个活动</small>
+              </div>
             </div>
             
-            <div class="form-group">
-              <label for="studentId">学号</label>
-              <input 
-                type="text" 
-                id="studentId" 
-                v-model="form.studentId" 
-                placeholder="请输入您的学号（选填）"
-                maxlength="20"
-              >
+            <div class="form-section">
+              <div class="section-title">
+                <span class="section-icon">📝</span>
+                <h3>个人简介</h3>
+                <span class="section-badge">必填</span>
+              </div>
+              
+              <div class="form-group">
+                <label for="introduction">自我介绍 <span class="required">*</span></label>
+                <textarea 
+                  id="introduction" 
+                  v-model="form.introduction" 
+                  :class="{ error: errors.introduction }"
+                  placeholder="请简要介绍您自己，包括相关经历、特长等（至少50字）"
+                  rows="5"
+                  @blur="validateField('introduction')"
+                  @focus="clearError('introduction')"
+                ></textarea>
+                <span class="char-count">{{ form.introduction.length }}/500</span>
+                <span v-if="errors.introduction" class="error-message">{{ errors.introduction }}</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="form-section">
-            <h3>个人简介</h3>
             
-            <div class="form-group">
-              <label for="introduction">个人简介 <span class="required">*</span></label>
-              <textarea 
-                id="introduction" 
-                v-model="form.introduction" 
-                :class="{ error: errors.introduction }"
-                placeholder="请简要介绍您自己，包括相关经历、特长等（至少50字）"
-                rows="5"
-              ></textarea>
-              <span class="char-count">{{ form.introduction.length }}/500</span>
-              <span v-if="errors.introduction" class="error-message">{{ errors.introduction }}</span>
+            <div class="form-section">
+              <div class="section-title">
+                <span class="section-icon">📄</span>
+                <h3>其他信息</h3>
+              </div>
+              
+              <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" v-model="form.agreeTerms">
+                  <span class="checkbox-custom"></span>
+                  我已阅读并同意活动相关条款和隐私政策
+                </label>
+                <span v-if="errors.agreeTerms" class="error-message">{{ errors.agreeTerms }}</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="form-section">
-            <h3>其他信息</h3>
             
-            <div class="form-group checkbox-group">
-              <label class="checkbox-label">
-                <input type="checkbox" v-model="form.agreeTerms">
-                <span>我已阅读并同意活动相关条款和隐私政策</span>
-              </label>
-              <span v-if="errors.agreeTerms" class="error-message">{{ errors.agreeTerms }}</span>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" @click="resetForm">
+                <span class="btn-icon">↺</span>
+                重置
+              </button>
+              <button type="submit" class="btn btn-primary" :disabled="submitting">
+                <span v-if="submitting" class="btn-spinner"></span>
+                <span class="btn-icon">✦</span>
+                {{ submitting ? '提交中...' : '提交报名' }}
+              </button>
             </div>
-          </div>
-          
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary" :disabled="submitting">
-              <span v-if="submitting" class="spinner"></span>
-              {{ submitting ? '提交中...' : '提交报名' }}
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </main>
   </div>
 </template>
 
 <script>
-import { apiGet, apiPost, isLoggedIn, getCurrentUser } from '../utils/api'
+import { apiGet, apiPost, isLoggedIn, isAdmin } from '../utils/api'
 import NotificationBell from '../components/NotificationBell.vue'
 
 export default {
@@ -180,6 +207,7 @@ export default {
   data() {
     return {
       isLoggedIn: false,
+      isAdmin: false,
       activityName: '',
       activityId: null,
       selectedCategory: '',
@@ -201,10 +229,34 @@ export default {
         introduction: '',
         agreeTerms: ''
       },
+      departments: [
+        '计算机学院',
+        '电子信息工程学院',
+        '经济管理学院',
+        '文学院',
+        '法学院',
+        '外国语学院',
+        '艺术学院',
+        '理学院',
+        '生命科学学院',
+        '化学工程学院',
+        '机械工程学院',
+        '建筑学院',
+        '医学院',
+        '教育学院',
+        '体育学院'
+      ],
       availableActivities: [],
       submitting: false,
       submitSuccess: false,
-      submittedOnce: false
+      categoryMap: {
+        sports: '体育运动',
+        academic: '学术科技',
+        art: '文化艺术',
+        social: '社会实践',
+        entertainment: '娱乐休闲',
+        other: '其他'
+      }
     }
   },
   computed: {
@@ -233,71 +285,95 @@ export default {
   },
   mounted() {
     this.checkLoginStatus()
-    this.loadAvailableActivities()
-    this.loadFormData()
+    this.loadActivities()
     
-    const activityId = this.$route.params.activityId
-    if (activityId) {
-      this.activityId = activityId
-      this.form.activity = parseInt(activityId)
+    // 如果URL中有活动ID参数
+    if (this.$route.params.id) {
+      this.activityId = parseInt(this.$route.params.id)
     }
   },
   methods: {
-    getCategoryText(category) {
-      const categoryMap = {
-        'sports': '体育运动',
-        'academic': '学术科技',
-        'art': '文化艺术',
-        'social': '社会实践',
-        'entertainment': '娱乐休闲',
-        'other': '其他'
-      }
-      return categoryMap[category] || '其他'
-    },
     checkLoginStatus() {
       this.isLoggedIn = isLoggedIn()
+      this.isAdmin = isAdmin()
       if (!this.isLoggedIn) {
         this.$router.push('/login')
       }
     },
-    async loadAvailableActivities() {
+    async loadActivities() {
       try {
         const response = await apiGet('/activities')
         if (!response.ok) {
-          if (response.status === 401) {
-            this.$router.push('/login')
-            return
-          }
           throw new Error('获取活动列表失败')
         }
         const data = await response.json()
         this.availableActivities = data
         
-        if (this.form.activity) {
-          const activity = this.availableActivities.find(a => a.id === parseInt(this.form.activity))
+        // 如果有活动ID，自动选择
+        if (this.activityId) {
+          const activity = this.availableActivities.find(act => act.id === this.activityId)
           if (activity) {
             this.activityName = activity.title
-            this.selectedCategory = activity.category || ''
+            this.form.activity = this.activityId
+            this.selectedCategory = activity.category
           }
         }
       } catch (error) {
         console.error('加载活动列表失败:', error)
-        this.availableActivities = []
       }
     },
-    loadFormData() {
-      const storedForm = localStorage.getItem('registrationForm')
-      if (storedForm && !this.submittedOnce) {
-        const savedForm = JSON.parse(storedForm)
-        Object.keys(savedForm).forEach(key => {
-          if (this.form[key] !== undefined && !this.form[key]) {
-            this.form[key] = savedForm[key]
+    getCategoryText(category) {
+      return this.categoryMap[category] || category
+    },
+    validateField(field) {
+      switch(field) {
+        case 'name':
+          if (!this.form.name.trim()) {
+            this.errors.name = '请输入您的姓名'
+          } else if (this.form.name.length > 50) {
+            this.errors.name = '姓名不能超过50个字符'
+          } else {
+            this.errors.name = ''
           }
-        })
+          break
+        case 'phone':
+          if (!this.form.phone) {
+            this.errors.phone = '请输入手机号码'
+          } else if (!/^1[3-9]\d{9}$/.test(this.form.phone)) {
+            this.errors.phone = '手机号格式不正确'
+          } else {
+            this.errors.phone = ''
+          }
+          break
+        case 'email':
+          if (this.form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email)) {
+            this.errors.email = '邮箱格式不正确'
+          } else {
+            this.errors.email = ''
+          }
+          break
+        case 'activity':
+          if (!this.form.activity) {
+            this.errors.activity = '请选择一个活动'
+          } else {
+            this.errors.activity = ''
+          }
+          break
+        case 'introduction':
+          if (!this.form.introduction.trim()) {
+            this.errors.introduction = '请填写自我介绍'
+          } else if (this.form.introduction.length < 50) {
+            this.errors.introduction = '自我介绍至少需要50字'
+          } else if (this.form.introduction.length > 500) {
+            this.errors.introduction = '自我介绍不能超过500字'
+          } else {
+            this.errors.introduction = ''
+          }
+          break
       }
     },
-    saveFormData() {
-      localStorage.setItem('registrationForm', JSON.stringify(this.form))
+    clearError(field) {
+      this.errors[field] = ''
     },
     validateForm() {
       let isValid = true
@@ -318,32 +394,32 @@ export default {
         isValid = false
       }
       
-      if (!this.form.phone.trim()) {
-        this.errors.phone = '请输入您的手机号码'
+      if (!this.form.phone) {
+        this.errors.phone = '请输入手机号码'
         isValid = false
       } else if (!/^1[3-9]\d{9}$/.test(this.form.phone)) {
-        this.errors.phone = '请输入有效的手机号码'
+        this.errors.phone = '手机号格式不正确'
         isValid = false
       }
       
       if (this.form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email)) {
-        this.errors.email = '请输入有效的邮箱地址'
+        this.errors.email = '邮箱格式不正确'
         isValid = false
       }
       
       if (!this.form.activity) {
-        this.errors.activity = '请选择报名项目'
+        this.errors.activity = '请选择一个活动'
         isValid = false
       }
       
       if (!this.form.introduction.trim()) {
-        this.errors.introduction = '请填写个人简介'
+        this.errors.introduction = '请填写自我介绍'
         isValid = false
       } else if (this.form.introduction.length < 50) {
-        this.errors.introduction = '个人简介至少需要50字'
+        this.errors.introduction = '自我介绍至少需要50字'
         isValid = false
       } else if (this.form.introduction.length > 500) {
-        this.errors.introduction = '个人简介不能超过500字'
+        this.errors.introduction = '自我介绍不能超过500字'
         isValid = false
       }
       
@@ -373,14 +449,11 @@ export default {
           introduction: this.form.introduction
         })
         
-        const data = await response.json()
-        
         if (!response.ok) {
+          const data = await response.json()
           throw new Error(data.message || '报名失败')
         }
         
-        localStorage.removeItem('registrationForm')
-        this.submittedOnce = true
         this.submitSuccess = true
         
       } catch (error) {
@@ -401,24 +474,19 @@ export default {
         introduction: '',
         agreeTerms: false
       }
-      this.errors = {}
+      this.errors = {
+        name: '',
+        phone: '',
+        email: '',
+        activity: '',
+        introduction: '',
+        agreeTerms: ''
+      }
       this.submitSuccess = false
-      localStorage.removeItem('registrationForm')
     },
     logout() {
       localStorage.removeItem('user')
-      this.isLoggedIn = false
       this.$router.push('/login')
-    }
-  },
-  watch: {
-    form: {
-      deep: true,
-      handler() {
-        if (!this.submitSuccess) {
-          this.saveFormData()
-        }
-      }
     }
   }
 }
@@ -427,54 +495,187 @@ export default {
 <style scoped>
 .registration-page {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: #f8f9fa;
 }
 
+/* 导航栏样式 - 与首页保持一致 */
 .header {
   background-color: #4CAF50;
   color: white;
-  padding: 20px;
+  padding: 15px 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .header h1 {
   font-size: 24px;
+  margin: 0;
+}
+
+nav {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 nav a {
   color: white;
   text-decoration: none;
-  margin-left: 20px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+  font-size: 14px;
+}
+
+nav a:hover {
+  background-color: rgba(255,255,255,0.2);
+}
+
+nav a.router-link-active {
+  background-color: rgba(255,255,255,0.3);
+  font-weight: 600;
 }
 
 .logout-link {
   color: white;
   text-decoration: none;
-  margin-left: 20px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.logout-link:hover {
+  background-color: rgba(255,255,255,0.2);
+}
+
+/* 页面头部区域 */
+.page-header-section {
+  text-align: center;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.header-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+}
+
+.page-title {
+  font-size: 32px;
+  margin: 0 0 10px 0;
+  font-weight: 600;
+}
+
+.page-subtitle {
+  font-size: 16px;
+  opacity: 0.9;
+  margin: 0 0 30px 0;
+}
+
+/* 报名类型切换标签 */
+.type-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 30px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 12px;
+  text-decoration: none;
+  color: white;
+  transition: all 0.3s;
+  min-width: 150px;
+  border: 2px solid transparent;
   cursor: pointer;
 }
 
-.main {
-  padding: 20px;
-  max-width: 800px;
-  margin: 0 auto;
+.tab-item:hover {
+  background: rgba(255,255,255,0.3);
+  transform: translateY(-2px);
 }
 
+.tab-item.active {
+  background: rgba(255,255,255,0.95);
+  color: #333;
+  border-color: #fff;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.tab-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.tab-text {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.tab-desc {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* 注册容器 */
 .registration-container {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 30px 20px;
+}
+
+.form-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
   overflow: hidden;
 }
 
-.registration-container h2 {
-  background-color: #f8f9fa;
-  padding: 20px;
+.card-header {
+  padding: 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  text-align: center;
+}
+
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.2);
+  padding: 8px 16px;
+  border-radius: 20px;
+  margin-bottom: 15px;
+}
+
+.badge-icon {
+  font-size: 20px;
+}
+
+.badge-text {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.card-header h3 {
+  font-size: 24px;
+  margin: 0 0 8px 0;
+}
+
+.card-header p {
   margin: 0;
-  color: #333;
-  border-bottom: 1px solid #eee;
+  opacity: 0.9;
+  font-size: 14px;
 }
 
 .activity-capacity-info {
@@ -517,53 +718,113 @@ nav a {
   color: #155724;
   padding: 15px 20px;
   margin: 20px;
-  border-radius: 4px;
+  border-radius: 8px;
+}
+
+.success-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  background: #28a745;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .success-icon {
-  font-size: 24px;
+  color: white;
+  font-size: 20px;
   font-weight: bold;
 }
 
-.registration-form {
-  padding: 20px;
+.success-content {
+  flex: 1;
 }
 
-.registration-form.submitted {
-  pointer-events: none;
-  opacity: 0.7;
+.success-content h4 {
+  margin: 0 0 5px 0;
+  color: #155724;
+}
+
+.success-content p {
+  margin: 0;
+  color: #155724;
+  font-size: 14px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #155724;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 表单样式 */
+.registration-form {
+  padding: 30px;
 }
 
 .form-section {
-  margin-bottom: 25px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #eee;
+  margin-bottom: 30px;
 }
 
-.form-section:last-of-type {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding-bottom: 0;
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #f0f0f0;
 }
 
-.form-section h3 {
-  margin-bottom: 15px;
-  color: #555;
-  font-size: 16px;
+.section-icon {
+  font-size: 20px;
+}
+
+.section-title h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.section-badge {
+  margin-left: auto;
+  padding: 4px 12px;
+  background: #e3f2fd;
+  color: #1976d2;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
 }
 
 .form-group {
-  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
 }
 
 .form-group label {
-  display: block;
-  margin-bottom: 5px;
-  color: #666;
+  font-size: 14px;
   font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
 }
 
 .required {
@@ -573,20 +834,20 @@ nav a {
 .form-group input,
 .form-group select,
 .form-group textarea {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
   font-size: 14px;
-  box-sizing: border-box;
-  transition: border-color 0.3s;
+  transition: all 0.3s;
+  background: white;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #4CAF50;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .form-group input.error,
@@ -595,115 +856,153 @@ nav a {
   border-color: #f44336;
 }
 
-.form-group textarea {
-  resize: vertical;
-  min-height: 100px;
-}
-
-.char-count {
-  display: block;
-  text-align: right;
-  font-size: 12px;
-  color: #999;
-  margin-top: 5px;
-}
-
-.checkbox-group {
-  margin-bottom: 0;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.checkbox-label input[type="checkbox"] {
-  width: auto;
-  margin-top: 2px;
-}
-
 .error-message {
   color: #f44336;
   font-size: 12px;
   margin-top: 5px;
-  display: block;
 }
 
+.char-count {
+  font-size: 12px;
+  color: #999;
+  text-align: right;
+  margin-top: 5px;
+}
+
+/* 复选框样式 */
+.checkbox-group {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+}
+
+.checkbox-label input[type="checkbox"] {
+  display: none;
+}
+
+.checkbox-custom {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  display: inline-block;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.checkbox-label input[type="checkbox"]:checked + .checkbox-custom {
+  border-color: #667eea;
+  background: #667eea;
+}
+
+.checkbox-label input[type="checkbox"]:checked + .checkbox-custom::after {
+  content: '';
+  width: 6px;
+  height: 12px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  position: absolute;
+  top: 2px;
+  left: 6px;
+  transform: rotate(45deg);
+}
+
+/* 表单操作按钮 */
 .form-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 15px;
-  margin-top: 25px;
   padding-top: 20px;
-  border-top: 1px solid #eee;
+  border-top: 2px solid #f0f0f0;
 }
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 12px 24px;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.3s;
+  transition: all 0.3s;
 }
 
 .btn-primary {
-  background-color: #4CAF50;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  flex: 1;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 .btn-primary:disabled {
-  background-color: #cccccc;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
 .btn-secondary {
-  background-color: #f0f0f0;
-  color: #333;
+  background: #f5f5f5;
+  color: #666;
 }
 
 .btn-secondary:hover {
-  background-color: #e0e0e0;
+  background: #e0e0e0;
 }
 
-.spinner {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 2px solid #fff;
-  border-top-color: transparent;
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  margin-right: 8px;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
+/* 响应式设计 */
 @media (max-width: 768px) {
   .header {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    gap: 15px;
+    padding: 15px;
   }
   
   nav {
-    display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    justify-content: center;
   }
   
-  nav a, .logout-link {
-    margin-left: 0;
+  .page-title {
+    font-size: 24px;
+  }
+  
+  .type-tabs {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .tab-item {
+    width: 100%;
+    max-width: 280px;
+  }
+  
+  .form-grid {
+    grid-template-columns: 1fr;
   }
   
   .form-actions {
@@ -712,6 +1011,7 @@ nav a {
   
   .btn {
     width: 100%;
+    justify-content: center;
   }
 }
 </style>
