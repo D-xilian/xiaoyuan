@@ -31,6 +31,10 @@
         <input type="text" id="location" v-model="form.location" required>
       </div>
       <div class="form-group">
+        <label for="capacity">活动容量（人数上限）</label>
+        <input type="number" id="capacity" v-model="form.capacity" min="1" max="10000" placeholder="默认100人">
+      </div>
+      <div class="form-group">
         <label for="image">活动图片</label>
         <input type="file" id="image" @change="handleImageUpload" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
         <div v-if="previewImage" class="image-preview">
@@ -57,6 +61,7 @@ export default {
         description: '',
         time: '',
         location: '',
+        capacity: 100,
         image_url: ''
       },
       previewImage: '',

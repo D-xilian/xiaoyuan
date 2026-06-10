@@ -15,6 +15,15 @@
       <div class="registration-container">
         <h2>{{ activityName || '活动报名' }}</h2>
         
+        <!-- 活动容量信息 -->
+        <div v-if="selectedActivity" class="activity-capacity-info">
+          <div class="capacity-bar">
+            <div class="capacity-fill" :style="{ width: capacityPercent + '%' }"></div>
+          </div>
+          <p class="capacity-text">活动名额：<strong>{{ selectedActivity.participants_count || 0 }}</strong> / {{ selectedActivity.capacity || 100 }} 人</p>
+          <p v-if="isActivityFull" class="capacity-warning">⚠️ 活动名额已满，无法报名</p>
+        </div>
+        
         <!-- 成功提示 -->
         <div v-if="submitSuccess" class="success-message">
           <span class="success-icon">✓</span>
@@ -86,7 +95,7 @@
               <select id="activity" v-model="form.activity" :class="{ error: errors.activity }" :disabled="!!activityId">
                 <option :value="null">请选择活动</option>
                 <option v-for="act in filteredActivities" :key="act.id" :value="act.id">
-                  {{ act.title }} ({{ getCategoryText(act.category) }})
+                  {{ act.title }} ({{ getCategoryText(act.category) }}) - 名额: {{ act.participants_count || 0 }}/{{ act.capacity || 100 }}
                 </option>
               </select>
               <span v-if="errors.activity" class="error-message">{{ errors.activity }}</span>
@@ -204,6 +213,22 @@ export default {
         return this.availableActivities
       }
       return this.availableActivities.filter(act => act.category === this.selectedCategory)
+    },
+    selectedActivity() {
+      if (!this.form.activity) return null
+      return this.availableActivities.find(act => act.id === this.form.activity)
+    },
+    capacityPercent() {
+      if (!this.selectedActivity) return 0
+      const capacity = this.selectedActivity.capacity || 100
+      const count = this.selectedActivity.participants_count || 0
+      return Math.min((count / capacity) * 100, 100)
+    },
+    isActivityFull() {
+      if (!this.selectedActivity) return false
+      const capacity = this.selectedActivity.capacity || 100
+      const count = this.selectedActivity.participants_count || 0
+      return count >= capacity
     }
   },
   mounted() {
@@ -450,6 +475,40 @@ nav a {
   margin: 0;
   color: #333;
   border-bottom: 1px solid #eee;
+}
+
+.activity-capacity-info {
+  background-color: #f8f9fa;
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.capacity-bar {
+  height: 8px;
+  background-color: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.capacity-fill {
+  height: 100%;
+  background-color: #4CAF50;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.capacity-text {
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.capacity-warning {
+  margin: 5px 0 0 0;
+  font-size: 13px;
+  color: #f44336;
+  font-weight: bold;
 }
 
 .success-message {
