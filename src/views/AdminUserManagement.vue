@@ -9,6 +9,7 @@
         <router-link to="/admin/users" v-if="isLoggedIn && isAdmin">用户管理</router-link>
         <router-link to="/admin/volunteers" v-if="isLoggedIn && isAdmin">志愿者管理</router-link>
         <router-link to="/activity/create" v-if="isLoggedIn && isAdmin">创建活动</router-link>
+        <router-link to="/my-activities" v-if="isLoggedIn && isAdmin">我发布的活动</router-link>
         <router-link to="/admin/activities" v-if="isLoggedIn && isAdmin">管理活动</router-link>
         <router-link to="/registration/list" v-if="isLoggedIn && isAdmin">查看报名</router-link>
         
