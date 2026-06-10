@@ -30,6 +30,10 @@
         <label for="location">活动地点</label>
         <input type="text" id="location" v-model="form.location" required>
       </div>
+      <div class="form-group">
+        <label for="capacity">活动容量（人数上限）</label>
+        <input type="number" id="capacity" v-model="form.capacity" min="1" max="10000">
+      </div>
       <button type="submit" class="btn" :disabled="loading">
         {{ loading ? '保存中...' : '保存修改' }}
       </button>
@@ -48,7 +52,8 @@ export default {
         category: '',
         description: '',
         time: '',
-        location: ''
+        location: '',
+        capacity: 100
       },
       loading: false,
       error: ''
@@ -83,6 +88,7 @@ export default {
         this.form.description = data.description
         this.form.time = data.time.replace(' ', 'T')
         this.form.location = data.location
+        this.form.capacity = data.capacity || 100
       } catch (error) {
         console.error('加载活动失败:', error)
         this.error = '加载活动失败，请稍后重试'

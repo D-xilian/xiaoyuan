@@ -34,18 +34,19 @@
         <h1 class="page-title">活动报名</h1>
         <p class="page-subtitle">选择您感兴趣的活动，开启精彩校园生活</p>
         
-        <!-- 报名类型切换标签 -->
-        <div class="type-tabs">
-          <div class="tab-item active">
-            <span class="tab-icon">📋</span>
-            <span class="tab-text">活动报名</span>
-            <span class="tab-desc">报名参加各类校园活动</span>
+        <!-- 活动容量信息 -->
+        <div v-if="selectedActivity" class="activity-capacity-info">
+          <div class="capacity-bar">
+            <div class="capacity-fill" :style="{ width: capacityPercent + '%' }"></div>
           </div>
-          <router-link to="/volunteer/recruitment" class="tab-item">
-            <span class="tab-icon">🤝</span>
-            <span class="tab-text">志愿者报名</span>
-            <span class="tab-desc">加入志愿者服务团队</span>
-          </router-link>
+          <p class="capacity-text">活动名额：<strong>{{ selectedActivity.participants_count || 0 }}</strong> / {{ selectedActivity.capacity || 100 }} 人</p>
+          <p v-if="isActivityFull" class="capacity-warning">⚠️ 活动名额已满，无法报名</p>
+        </div>
+        
+        <!-- 成功提示 -->
+        <div v-if="submitSuccess" class="success-message">
+          <span class="success-icon">✓</span>
+          <p>报名成功！您的报名信息已提交。</p>
         </div>
       </div>
 
@@ -72,79 +73,34 @@
             <button class="close-btn" @click="resetForm">×</button>
           </div>
           
-          <form @submit.prevent="submitForm" class="registration-form">
-            <div class="form-section">
-              <div class="section-title">
-                <span class="section-icon">👤</span>
-                <h3>基本信息</h3>
-                <span class="section-badge">必填</span>
-              </div>
-              
-              <div class="form-grid">
-                <div class="form-group">
-                  <label for="name">姓名 <span class="required">*</span></label>
-                  <input 
-                    type="text" 
-                    id="name" 
-                    v-model="form.name" 
-                    :class="{ error: errors.name }"
-                    placeholder="请输入您的姓名"
-                    maxlength="50"
-                    @blur="validateField('name')"
-                    @focus="clearError('name')"
-                  >
-                  <span v-if="errors.name" class="error-message">{{ errors.name }}</span>
-                </div>
-                
-                <div class="form-group">
-                  <label for="phone">联系方式 <span class="required">*</span></label>
-                  <input 
-                    type="tel" 
-                    id="phone" 
-                    v-model="form.phone" 
-                    :class="{ error: errors.phone }"
-                    placeholder="请输入您的手机号码"
-                    maxlength="11"
-                    @blur="validateField('phone')"
-                    @focus="clearError('phone')"
-                  >
-                  <span v-if="errors.phone" class="error-message">{{ errors.phone }}</span>
-                </div>
-                
-                <div class="form-group">
-                  <label for="email">邮箱</label>
-                  <input 
-                    type="email" 
-                    id="email" 
-                    v-model="form.email" 
-                    :class="{ error: errors.email }"
-                    placeholder="请输入您的邮箱（选填）"
-                    maxlength="100"
-                    @blur="validateField('email')"
-                    @focus="clearError('email')"
-                  >
-                  <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
-                </div>
+          <div class="form-section">
+            <h3>报名信息</h3>
+            
+            <div class="form-group">
+              <label for="category">活动类型</label>
+              <select id="category" v-model="selectedCategory" :disabled="!!activityId">
+                <option value="">请选择活动类型</option>
+                <option value="sports">体育运动</option>
+                <option value="academic">学术科技</option>
+                <option value="art">文化艺术</option>
+                <option value="social">社会实践</option>
+                <option value="entertainment">娱乐休闲</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
 
-                <div class="form-group">
-                  <label for="department">所在院系</label>
-                  <select id="department" v-model="form.department">
-                    <option value="">请选择院系（选填）</option>
-                    <option v-for="dept in departments" :key="dept" :value="dept">{{ dept }}</option>
-                  </select>
-                </div>
-                
-                <div class="form-group">
-                  <label for="studentId">学号</label>
-                  <input 
-                    type="text" 
-                    id="studentId" 
-                    v-model="form.studentId" 
-                    placeholder="请输入您的学号（选填）"
-                    maxlength="20"
-                  >
-                </div>
-              </div>
+            <div class="form-group">
+              <label for="activity">报名项目 <span class="required">*</span></label>
+              <select id="activity" v-model="form.activity" :class="{ error: errors.activity }" :disabled="!!activityId">
+                <option :value="null">请选择活动</option>
+                <option v-for="act in filteredActivities" :key="act.id" :value="act.id">
+                  {{ act.title }} ({{ getCategoryText(act.category) }}) - 名额: {{ act.participants_count || 0 }}/{{ act.capacity || 100 }}
+                </option>
+              </select>
+              <span v-if="errors.activity" class="error-message">{{ errors.activity }}</span>
+              <small v-if="filteredActivities.length === 0 && selectedCategory" style="color: #999;">该类型下没有活动</small>
+              <small v-else-if="filteredActivities.length === 0" style="color: #999;">暂无可用活动</small>
+              <small v-else style="color: #999;">共 {{ filteredActivities.length }} 个活动</small>
             </div>
             
             <div class="form-section">
@@ -309,6 +265,22 @@ export default {
         return this.availableActivities
       }
       return this.availableActivities.filter(act => act.category === this.selectedCategory)
+    },
+    selectedActivity() {
+      if (!this.form.activity) return null
+      return this.availableActivities.find(act => act.id === this.form.activity)
+    },
+    capacityPercent() {
+      if (!this.selectedActivity) return 0
+      const capacity = this.selectedActivity.capacity || 100
+      const count = this.selectedActivity.participants_count || 0
+      return Math.min((count / capacity) * 100, 100)
+    },
+    isActivityFull() {
+      if (!this.selectedActivity) return false
+      const capacity = this.selectedActivity.capacity || 100
+      const count = this.selectedActivity.participants_count || 0
+      return count >= capacity
     }
   },
   mounted() {
@@ -706,14 +678,45 @@ nav a.router-link-active {
   font-size: 14px;
 }
 
-/* 成功提示 */
-.success-alert {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  padding: 20px 30px;
-  background: #d4edda;
-  border-left: 4px solid #28a745;
+.activity-capacity-info {
+  background-color: #f8f9fa;
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.capacity-bar {
+  height: 8px;
+  background-color: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.capacity-fill {
+  height: 100%;
+  background-color: #4CAF50;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.capacity-text {
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.capacity-warning {
+  margin: 5px 0 0 0;
+  font-size: 13px;
+  color: #f44336;
+  font-weight: bold;
+}
+
+.success-message {
+  background-color: #d4edda;
+  border-color: #c3e6cb;
+  color: #155724;
+  padding: 15px 20px;
   margin: 20px;
   border-radius: 8px;
 }
