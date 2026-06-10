@@ -117,6 +117,13 @@ const routes = [
     name: 'CheckInScan',
     component: () => import('../views/CheckInScan.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    // 管理员数据仪表盘
+    path: '/admin/dashboard',
+    name: 'AdminDashboard',
+    component: () => import('../views/AdminDashboard.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 
