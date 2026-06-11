@@ -24,6 +24,7 @@
           <p><strong>时间:</strong> {{ activity.date || activity.time }}</p>
           <p><strong>地点:</strong> {{ activity.location }}</p>
           <p><strong>主办方:</strong> {{ activity.organizer || activity.publisher }}</p>
+          <p><strong>活动容量:</strong> {{ activity.participants_count || 0 }} / {{ activity.capacity || 100 }} 人</p>
         </div>
         <div class="activity-description">
           <h3>活动内容</h3>

@@ -71,6 +71,7 @@ class Activity(db.Model):
     image_url = db.Column(db.String(500), nullable=True)
     publisher_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     publisher = db.relationship('User', backref=db.backref('activities', lazy=True))
+    capacity = db.Column(db.Integer, default=100)  # 活动容量，默认100人
 
 class JoinActivity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -211,7 +212,9 @@ def get_activities():
         'location': activity.location,
         'category': activity.category,
         'image_url': activity.image_url,
-        'publisher': activity.publisher.username
+        'publisher': activity.publisher.username,
+        'capacity': activity.capacity,
+        'participants_count': JoinActivity.query.filter_by(activity_id=activity.id).count()
     } for activity in activities]), 200
 
 @app.route('/api/activities', methods=['POST'])
@@ -224,6 +227,7 @@ def create_activity(user):
     location = data.get('location')
     category = data.get('category', 'other')
     image_url = data.get('image_url')
+    capacity = data.get('capacity', 100)
     
     new_activity = Activity(
         title=title,
@@ -232,7 +236,8 @@ def create_activity(user):
         location=location,
         category=category,
         image_url=image_url,
-        publisher_id=user.id
+        publisher_id=user.id,
+        capacity=capacity
     )
     db.session.add(new_activity)
     db.session.commit()
@@ -266,6 +271,7 @@ def get_activity(id):
         return jsonify({'message': '活动不存在'}), 404
     
     comments = Comment.query.filter_by(activity_id=id).all()
+    participants_count = JoinActivity.query.filter_by(activity_id=id).count()
     
     return jsonify({
         'id': activity.id,
@@ -276,6 +282,8 @@ def get_activity(id):
         'category': activity.category,
         'image_url': activity.image_url,
         'publisher': activity.publisher.username,
+        'capacity': activity.capacity,
+        'participants_count': participants_count,
         'comments': [{
             'id': comment.id,
             'user': comment.user.username,
@@ -297,6 +305,8 @@ def update_activity(user, id):
     activity.time = datetime.datetime.strptime(data.get('time'), '%Y-%m-%dT%H:%M')
     activity.location = data.get('location', activity.location)
     activity.category = data.get('category', activity.category)
+    if 'capacity' in data:
+        activity.capacity = data.get('capacity', activity.capacity)
     
     db.session.commit()
     return jsonify({'message': '活动更新成功'}), 200
@@ -318,6 +328,11 @@ def join_activity(user, id):
     activity = Activity.query.get(id)
     if not activity:
         return jsonify({'message': '活动不存在'}), 404
+    
+    # 检查活动是否已满员
+    participants_count = JoinActivity.query.filter_by(activity_id=id).count()
+    if participants_count >= activity.capacity:
+        return jsonify({'message': '活动名额已满，无法报名'}), 400
     
     # 允许同一用户使用不同参与者信息多次报名，不做重复限制
 
