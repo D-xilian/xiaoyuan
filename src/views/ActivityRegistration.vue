@@ -73,47 +73,14 @@
             <button class="close-btn" @click="resetForm">×</button>
           </div>
           
-          <div class="form-section">
-            <h3>报名信息</h3>
-            
-            <div class="form-group">
-              <label for="category">活动类型</label>
-              <select id="category" v-model="selectedCategory" :disabled="!!activityId">
-                <option value="">请选择活动类型</option>
-                <option value="sports">体育运动</option>
-                <option value="academic">学术科技</option>
-                <option value="art">文化艺术</option>
-                <option value="social">社会实践</option>
-                <option value="entertainment">娱乐休闲</option>
-                <option value="other">其他</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="activity">报名项目 <span class="required">*</span></label>
-              <select id="activity" v-model="form.activity" :class="{ error: errors.activity }" :disabled="!!activityId">
-                <option :value="null">请选择活动</option>
-                <option v-for="act in filteredActivities" :key="act.id" :value="act.id">
-                  {{ act.title }} ({{ getCategoryText(act.category) }}) - 名额: {{ act.participants_count || 0 }}/{{ act.capacity || 100 }}
-                </option>
-              </select>
-              <span v-if="errors.activity" class="error-message">{{ errors.activity }}</span>
-              <small v-if="filteredActivities.length === 0 && selectedCategory" style="color: #999;">该类型下没有活动</small>
-              <small v-else-if="filteredActivities.length === 0" style="color: #999;">暂无可用活动</small>
-              <small v-else style="color: #999;">共 {{ filteredActivities.length }} 个活动</small>
-            </div>
-            
+          <form @submit.prevent="submitRegistration" class="registration-form">
             <div class="form-section">
-              <div class="section-title">
-                <span class="section-icon">🎯</span>
-                <h3>选择活动</h3>
-                <span class="section-badge">必填</span>
-              </div>
+              <h3>报名信息</h3>
               
               <div class="form-group">
-                <label for="category">活动类型筛选</label>
-                <select id="category" v-model="selectedCategory">
-                  <option value="">全部类型</option>
+                <label for="category">活动类型</label>
+                <select id="category" v-model="selectedCategory" :disabled="!!activityId">
+                  <option value="">请选择活动类型</option>
                   <option value="sports">体育运动</option>
                   <option value="academic">学术科技</option>
                   <option value="art">文化艺术</option>
@@ -128,7 +95,7 @@
                 <select id="activity" v-model="form.activity" :class="{ error: errors.activity }" :disabled="!!activityId">
                   <option :value="null">请选择活动</option>
                   <option v-for="act in filteredActivities" :key="act.id" :value="act.id">
-                    {{ act.title }} ({{ getCategoryText(act.category) }})
+                    {{ act.title }} ({{ getCategoryText(act.category) }}) - 名额: {{ act.participants_count || 0 }}/{{ act.capacity || 100 }}
                   </option>
                 </select>
                 <span v-if="errors.activity" class="error-message">{{ errors.activity }}</span>
