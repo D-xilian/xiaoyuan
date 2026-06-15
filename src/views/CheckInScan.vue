@@ -1,16 +1,5 @@
 <template>
   <div class="checkin-scan-page">
-    <header class="header">
-      <h1>活动签到</h1>
-      <nav>
-        <router-link to="/">首页</router-link>
-        <router-link to="/activity/register" v-if="isLoggedIn">报名活动</router-link>
-        <router-link to="/registration/list" v-if="isLoggedIn">报名列表</router-link>
-        <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
-        <a v-if="isLoggedIn" @click="logout" class="logout-link">退出登录</a>
-      </nav>
-    </header>
-
     <main class="main">
       <div v-if="!isLoggedIn" class="not-logged-in">
         <p>请先登录</p>

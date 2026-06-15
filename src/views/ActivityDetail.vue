@@ -1,18 +1,5 @@
 <template>
   <div class="activity-detail">
-    <header class="header">
-      <h1>校园活动详情</h1>
-      <nav>
-        <router-link to="/">首页</router-link>
-        <router-link to="/activity/register" v-if="isLoggedIn">报名活动</router-link>
-        <router-link to="/registration/list" v-if="isLoggedIn">报名列表</router-link>
-        <router-link to="/checkin" v-if="isLoggedIn">签到</router-link>
-        <router-link to="/login" v-if="!isLoggedIn">登录</router-link>
-        <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
-        <a v-if="isLoggedIn" @click="logout" class="logout-link">退出登录</a>
-      </nav>
-    </header>
-    
     <main class="main">
       <div v-if="loading" class="loading">加载中...</div>
       <div v-else-if="activity">
@@ -364,11 +351,6 @@ export default {
           alert(error.message || '评论失败，请稍后重试')
         }
       }
-    },
-    logout() {
-      localStorage.removeItem('user')
-      this.isLoggedIn = false
-      this.$router.push('/login')
     }
   }
 }
@@ -378,32 +360,6 @@ export default {
 .activity-detail {
   min-height: 100vh;
   background-color: #f5f5f5;
-}
-
-.header {
-  background-color: #4CAF50;
-  color: white;
-  padding: 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header h1 {
-  font-size: 24px;
-}
-
-nav a {
-  color: white;
-  text-decoration: none;
-  margin-left: 20px;
-}
-
-.logout-link {
-  color: white;
-  text-decoration: none;
-  margin-left: 20px;
-  cursor: pointer;
 }
 
 .main {

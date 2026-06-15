@@ -1,15 +1,5 @@
 <template>
   <div class="profile-page">
-    <header class="header">
-      <h1>校园活动发布平台</h1>
-      <nav>
-        <router-link to="/">首页</router-link>
-        <router-link to="/activity/register">报名活动</router-link>
-        <router-link to="/registration/list">报名管理</router-link>
-        <a @click="logout" class="logout-link">退出登录</a>
-      </nav>
-    </header>
-    
     <main class="main">
       <div v-if="!user" class="not-logged-in">
         <p>请先登录</p>
@@ -542,12 +532,6 @@ export default {
       }
     },
     
-    logout() {
-      localStorage.removeItem('user')
-      this.user = null
-      this.$router.push('/login')
-    },
-    
     async updateProfile() {
       this.error = ''
       this.success = ''
@@ -644,32 +628,6 @@ export default {
 .profile-page {
   min-height: 100vh;
   background-color: #f5f5f5;
-}
-
-.header {
-  background-color: #4CAF50;
-  color: white;
-  padding: 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header h1 {
-  font-size: 24px;
-}
-
-nav a {
-  color: white;
-  text-decoration: none;
-  margin-left: 20px;
-}
-
-.logout-link {
-  color: white;
-  text-decoration: none;
-  margin-left: 20px;
-  cursor: pointer;
 }
 
 .main {

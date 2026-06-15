@@ -1,15 +1,5 @@
 <template>
   <div class="registration-detail-page">
-    <header class="header">
-      <h1>报名详情</h1>
-      <nav>
-        <router-link to="/">首页</router-link>
-        <router-link to="/registration/list">报名列表</router-link>
-        <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
-        <a v-if="isLoggedIn" @click="logout" class="logout-link">退出登录</a>
-      </nav>
-    </header>
-    
     <main class="main">
       <div v-if="loading" class="loading-container">
         <div class="spinner"></div>
