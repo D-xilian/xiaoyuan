@@ -73,7 +73,7 @@
             <button class="close-btn" @click="resetForm">×</button>
           </div>
           
-          <form @submit.prevent="submitRegistration" class="registration-form">
+          <form @submit.prevent="submitForm" class="registration-form">
             <div class="form-section">
               <h3>报名信息</h3>
               
@@ -255,8 +255,8 @@ export default {
     this.loadActivities()
     
     // 如果URL中有活动ID参数
-    if (this.$route.params.id) {
-      this.activityId = parseInt(this.$route.params.id)
+    if (this.$route.params.activityId) {
+      this.activityId = parseInt(this.$route.params.activityId)
     }
   },
   methods: {
@@ -294,31 +294,6 @@ export default {
     },
     validateField(field) {
       switch(field) {
-        case 'name':
-          if (!this.form.name.trim()) {
-            this.errors.name = '请输入您的姓名'
-          } else if (this.form.name.length > 50) {
-            this.errors.name = '姓名不能超过50个字符'
-          } else {
-            this.errors.name = ''
-          }
-          break
-        case 'phone':
-          if (!this.form.phone) {
-            this.errors.phone = '请输入手机号码'
-          } else if (!/^1[3-9]\d{9}$/.test(this.form.phone)) {
-            this.errors.phone = '手机号格式不正确'
-          } else {
-            this.errors.phone = ''
-          }
-          break
-        case 'email':
-          if (this.form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email)) {
-            this.errors.email = '邮箱格式不正确'
-          } else {
-            this.errors.email = ''
-          }
-          break
         case 'activity':
           if (!this.form.activity) {
             this.errors.activity = '请选择一个活动'
@@ -345,33 +320,9 @@ export default {
     validateForm() {
       let isValid = true
       this.errors = {
-        name: '',
-        phone: '',
-        email: '',
         activity: '',
         introduction: '',
         agreeTerms: ''
-      }
-      
-      if (!this.form.name.trim()) {
-        this.errors.name = '请输入您的姓名'
-        isValid = false
-      } else if (this.form.name.length > 50) {
-        this.errors.name = '姓名不能超过50个字符'
-        isValid = false
-      }
-      
-      if (!this.form.phone) {
-        this.errors.phone = '请输入手机号码'
-        isValid = false
-      } else if (!/^1[3-9]\d{9}$/.test(this.form.phone)) {
-        this.errors.phone = '手机号格式不正确'
-        isValid = false
-      }
-      
-      if (this.form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email)) {
-        this.errors.email = '邮箱格式不正确'
-        isValid = false
       }
       
       if (!this.form.activity) {
