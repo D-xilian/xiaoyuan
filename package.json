@@ -15,7 +15,10 @@
     "test:registration": "playwright test registration --config=tests/e2e/playwright.config.js",
     "test:admin": "playwright test admin --config=tests/e2e/playwright.config.js",
     "test:debug": "playwright test --debug --config=tests/e2e/playwright.config.js",
-    "test:report": "playwright show-report test-results/report"
+    "test:report": "playwright show-report test-results/report",
+    "bdd": "node tests/bdd/runner.js",
+    "bdd:smoke": "node tests/bdd/runner.js --tags=smoke",
+    "bdd:report": "node tests/bdd/runner.js --report-only"
   },
   "dependencies": {
     "docx": "^9.7.1",
