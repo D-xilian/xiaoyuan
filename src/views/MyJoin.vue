@@ -1,16 +1,5 @@
 <template>
   <div class="my-join-page">
-    <header class="header">
-      <h1>校园活动发布平台</h1>
-      <nav>
-        <router-link to="/">首页</router-link>
-        <router-link to="/activity/register">报名活动</router-link>
-        <router-link to="/registration/list">报名列表</router-link>
-        <router-link to="/profile">个人中心</router-link>
-        <a @click="logout" class="logout-link">退出登录</a>
-      </nav>
-    </header>
-    
     <main class="main">
       <div class="my-join">
         <div class="header">

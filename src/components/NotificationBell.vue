@@ -54,11 +54,14 @@ export default {
   position: relative;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   text-decoration: none;
-  margin-left: 20px;
+  color: rgba(255, 255, 255, 0.9);
+  padding: 10px 15px;
+  border-radius: 8px;
   cursor: pointer;
   opacity: 0.7;
-  transition: opacity 0.2s;
+  transition: all 0.3s ease;
 }
 
 .notification-bell:hover {

@@ -1,17 +1,5 @@
 <template>
   <div class="notification-page">
-    <header class="header">
-      <h1>校园活动发布平台</h1>
-      <nav>
-        <router-link to="/">首页</router-link>
-        <router-link to="/activity/register" v-if="isLoggedIn">报名活动</router-link>
-        <router-link to="/notifications" v-if="isLoggedIn" class="active-link">消息通知</router-link>
-        <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
-        <a v-if="isLoggedIn" @click="logout" class="logout-link">退出登录</a>
-        <router-link to="/login" v-if="!isLoggedIn">登录</router-link>
-      </nav>
-    </header>
-
     <main class="main">
       <div v-if="!isLoggedIn" class="not-logged-in">
         <p>请先登录查看通知</p>

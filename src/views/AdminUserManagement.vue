@@ -1,31 +1,5 @@
 <template>
   <div class="admin-users">
-    <header class="header">
-      <h1>校园活动发布平台</h1>
-      <nav>
-        <router-link to="/">首页</router-link>
-        
-        <!-- 管理员菜单 -->
-        <router-link to="/admin/users" v-if="isLoggedIn && isAdmin">用户管理</router-link>
-        <router-link to="/admin/volunteers" v-if="isLoggedIn && isAdmin">志愿者管理</router-link>
-        <router-link to="/activity/create" v-if="isLoggedIn && isAdmin">创建活动</router-link>
-        <router-link to="/my-activities" v-if="isLoggedIn && isAdmin">我发布的活动</router-link>
-        <router-link to="/admin/activities" v-if="isLoggedIn && isAdmin">管理活动</router-link>
-        <router-link to="/registration/list" v-if="isLoggedIn && isAdmin">查看报名</router-link>
-        
-        <!-- 普通用户菜单 -->
-        <router-link to="/activity/register" v-if="isLoggedIn && !isAdmin">报名活动</router-link>
-        <router-link to="/volunteer/recruitment" v-if="isLoggedIn && !isAdmin">志愿者招募</router-link>
-        <router-link to="/my-join" v-if="isLoggedIn && !isAdmin">我的报名</router-link>
-        
-        <!-- 通用菜单 -->
-        <router-link to="/login" v-if="!isLoggedIn">登录</router-link>
-        <router-link to="/register" v-if="!isLoggedIn">注册</router-link>
-        <router-link to="/profile" v-if="isLoggedIn">个人中心</router-link>
-        <a v-if="isLoggedIn" @click="logout" class="logout-link">退出登录</a>
-      </nav>
-    </header>
-
     <main class="main">
       <div class="page-header">
         <h2>用户管理</h2>
