@@ -687,7 +687,9 @@ def get_my_activities(user):
 @custom_login_required
 def get_my_join(user):
     joins = JoinActivity.query.filter_by(user_id=user.id).all()
-    activities = [Activity.query.get(join.activity_id) for join in joins if Activity.query.get(join.activity_id)]
+    # 获取已签到的活动ID列表
+    checked_in_ids = {c.activity_id for c in CheckIn.query.filter_by(user_id=user.id).all()}
+    activities = [Activity.query.get(join.activity_id) for join in joins if Activity.query.get(join.activity_id) and join.activity_id not in checked_in_ids]
     return jsonify([{
         'id': activity.id,
         'title': activity.title,
