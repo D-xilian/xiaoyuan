@@ -57,6 +57,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/activity/:activityId/registrations',
+    name: 'ActivityRegistrations',
+    component: () => import('../views/RegistrationList.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/registration/:id',
     name: 'RegistrationDetail',
     component: () => import('../views/RegistrationDetail.vue'),

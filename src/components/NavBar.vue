@@ -138,12 +138,10 @@ export default {
     const router = useRouter();
 
     const checkAuth = () => {
-      const token = localStorage.getItem('token');
-      const role = localStorage.getItem('role');
       const user = localStorage.getItem('user');
-      isLoggedIn.value = !!token || !!user;
-      isAdmin.value = role === 'admin';
-      if (!role && user) {
+      isLoggedIn.value = !!user;
+      isAdmin.value = false;
+      if (user) {
         try {
           const userData = JSON.parse(user);
           isAdmin.value = userData.role === 'admin';
@@ -154,14 +152,11 @@ export default {
     };
 
     const logout = () => {
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
-      localStorage.removeItem('user_id');
-      localStorage.removeItem('username');
+      localStorage.removeItem('user');
       isLoggedIn.value = false;
       isAdmin.value = false;
       closeMobileMenu();
-      window.location.href = '/login';
+      router.push('/login');
     };
 
     const toggleMobileMenu = () => {

@@ -1,73 +1,36 @@
 <template>
   <div class="volunteer-recruitment">
+    <div class="header-content">
+      <h1>志愿者招募</h1>
+      <p class="subtitle">用行动传递温暖，让爱心点亮未来</p>
+    </div>
+    
     <main class="main-content">
-      <!-- 页面标题区域 -->
-      <div class="page-header-section">
-        <h1 class="page-title">志愿者招募</h1>
-        <p class="page-subtitle">加入我们的志愿者团队，用爱心温暖校园，用行动传递正能量</p>
-        
-        <!-- 报名类型切换标签 -->
-        <div class="type-tabs">
-          <router-link to="/activity/register" class="tab-item">
-            <span class="tab-text">活动报名</span>
-            <span class="tab-desc">报名参加各类校园活动</span>
-          </router-link>
-          <div class="tab-item active">
-            <span class="tab-text">志愿者报名</span>
-            <span class="tab-desc">加入志愿者服务团队</span>
-          </div>
-        </div>
-      </div>
-
       <div class="form-container">
         <div class="form-card">
           <div class="card-header">
-            <h3>志愿者报名申请表</h3>
-            <p>请填写以下信息完成志愿者报名申请</p>
+            <h3>志愿者报名</h3>
+            <p>请填写以下信息完成报名</p>
           </div>
           
           <!-- 成功提示 -->
           <div v-if="submitSuccess" class="success-alert">
+            <div class="success-icon-wrapper">
+              <span class="success-icon">✓</span>
+            </div>
             <div class="success-content">
               <h4>报名成功！</h4>
-              <p>感谢您的志愿精神，我们会尽快审核您的申请并与您联系。</p>
-              <div v-if="submittedActivities.length > 0" class="success-activities">
-                <h5>您已报名以下活动：</h5>
-                <ul>
-                  <li v-for="activity in submittedActivities" :key="activity.id">{{ activity.title }}</li>
-                </ul>
-              </div>
+              <p>感谢您的志愿精神，我们会尽快与您联系。</p>
             </div>
-            <button class="close-btn" @click="resetForm">关闭</button>
+            <button class="close-btn" @click="resetForm">×</button>
           </div>
           
-          <!-- 已报名状态显示 -->
-          <div v-else-if="hasRegistrations && registrations.length > 0" class="registration-status">
-            <h4>您已提交的志愿者报名</h4>
-            <div class="registrations-list">
-              <div 
-                v-for="reg in registrations" 
-                :key="reg.id" 
-                class="status-card" 
-                :class="reg.status"
-              >
-                <div class="status-header">
-                  <span class="activity-title">{{ reg.activity_title }}</span>
-                  <span class="status-label" :class="reg.status">{{ getStatusText(reg.status) }}</span>
-                </div>
-                <p class="registration-time">报名时间：{{ reg.registration_time }}</p>
-                <p v-if="reg.admin_note" class="admin-note">管理员备注：{{ reg.admin_note }}</p>
-                <button class="cancel-btn" @click="cancelRegistration(reg.id)">取消报名</button>
-              </div>
-            </div>
-          </div>
-          
-          <form v-else @submit.prevent="submitForm" class="volunteer-form">
+          <form @submit.prevent="submitForm" class="volunteer-form" :class="{ submitted: submitSuccess }">
             <!-- 个人信息区域 -->
             <div class="form-section">
               <div class="section-title">
+                <span class="section-icon">👤</span>
                 <h4>个人信息</h4>
-                <span class="section-badge">必填</span>
               </div>
               
               <div class="form-grid">
@@ -80,7 +43,7 @@
                     id="name" 
                     v-model="form.name" 
                     :class="{ error: errors.name }"
-                    placeholder="请输入您的真实姓名"
+                    placeholder="请输入您的姓名"
                     maxlength="50"
                     @blur="validateField('name')"
                     @focus="clearError('name')"
@@ -112,16 +75,16 @@
                     学号 <span class="required">*</span>
                   </label>
                   <input 
-                    type="text" 
+                    type="number" 
                     id="studentId" 
-                    v-model="form.student_id" 
-                    :class="{ error: errors.student_id }"
+                    v-model="form.studentId" 
+                    :class="{ error: errors.studentId }"
                     placeholder="请输入您的学号"
                     maxlength="20"
-                    @blur="validateField('student_id')"
-                    @focus="clearError('student_id')"
+                    @blur="validateField('studentId')"
+                    @focus="clearError('studentId')"
                   >
-                  <span v-if="errors.student_id" class="error-message">{{ errors.student_id }}</span>
+                  <span v-if="errors.studentId" class="error-message">{{ errors.studentId }}</span>
                 </div>
                 
                 <div class="form-group">
@@ -139,90 +102,61 @@
                   </select>
                   <span v-if="errors.department" class="error-message">{{ errors.department }}</span>
                 </div>
-
-                <div class="form-group">
-                  <label for="phone">
-                    联系电话
-                  </label>
-                  <input 
-                    type="tel" 
-                    id="phone" 
-                    v-model="form.phone" 
-                    :class="{ error: errors.phone }"
-                    placeholder="请输入您的联系电话"
-                    maxlength="20"
-                    @blur="validateField('phone')"
-                    @focus="clearError('phone')"
-                  >
-                  <span v-if="errors.phone" class="error-message">{{ errors.phone }}</span>
-                </div>
-
-                <div class="form-group">
-                  <label for="email">
-                    邮箱
-                  </label>
-                  <input 
-                    type="email" 
-                    id="email" 
-                    v-model="form.email" 
-                    :class="{ error: errors.email }"
-                    placeholder="请输入您的邮箱地址"
-                    maxlength="100"
-                    @blur="validateField('email')"
-                    @focus="clearError('email')"
-                  >
-                  <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
-                </div>
               </div>
             </div>
             
-            <!-- 选择活动区域 -->
+            <!-- 活动选择区域 -->
             <div class="form-section">
               <div class="section-title">
+                <span class="section-icon">🎯</span>
                 <h4>选择活动</h4>
-                <span class="section-badge">必填</span>
+                <small class="section-hint">请选择您要报名的志愿活动（限选一项）</small>
               </div>
               
-              <div class="form-grid">
-                <div class="form-group full-width">
-                  <label>
-                    报名活动（可多选）<span class="required">*</span>
-                  </label>
-                  <div class="checkbox-group">
-                    <label 
-                      v-for="activity in availableActivities" 
-                      :key="activity.id" 
-                      class="checkbox-label"
-                      :class="{ checked: form.activity_ids.includes(activity.id) }"
-                    >
-                      <input 
-                        type="checkbox" 
-                        :value="activity.id" 
-                        v-model="form.activity_ids"
-                        :disabled="isActivityRegistered(activity.id)"
-                      >
-                      <span class="checkbox-custom"></span>
-                      <span class="activity-info">
-                        <span class="activity-name">{{ activity.title }}</span>
-                        <span class="activity-meta">{{ activity.time }} - {{ activity.location }}</span>
-                      </span>
-                      <span v-if="isActivityRegistered(activity.id)" class="registered-badge">已报名</span>
-                    </label>
+              <div class="activity-grid">
+                <label 
+                  v-for="activity in activities" 
+                  :key="activity.id" 
+                  class="activity-card"
+                  :class="{ selected: form.activity === activity.id, error: errors.activity }"
+                >
+                  <input 
+                    type="radio" 
+                    name="activity" 
+                    :value="activity.id" 
+                    v-model="form.activity"
+                    @change="validateField('activity')"
+                  >
+                  <div class="activity-content">
+                    <div v-if="activity.image_url" class="activity-image">
+                      <img :src="activity.image_url" :alt="activity.title">
+                    </div>
+                    <h5>{{ activity.title }}</h5>
+                    <p class="activity-desc">{{ activity.description }}</p>
+                    <div class="activity-meta">
+                      <span class="meta-item">📅 {{ activity.date }}</span>
+                      <span class="meta-item">📍 {{ activity.location }}</span>
+                      <span v-if="activity.category" class="meta-item category-tag">🏷️ {{ getCategoryText(activity.category) }}</span>
+                    </div>
+                    <span class="activity-tags">
+                      <span v-for="tag in activity.tags" :key="tag" class="tag">{{ tag }}</span>
+                    </span>
                   </div>
-                  <span v-if="errors.activity_ids" class="error-message">{{ errors.activity_ids }}</span>
-                  <small v-if="availableActivities.length === 0" style="color: #999;">暂无可报名的活动</small>
-                </div>
+                </label>
               </div>
+              <span v-if="errors.activity" class="error-message activity-error">{{ errors.activity }}</span>
             </div>
             
             <!-- 表单操作按钮 -->
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" @click="resetForm">
+                <span class="btn-icon">↺</span>
                 重置
               </button>
               <button type="submit" class="btn btn-primary" :disabled="submitting">
                 <span v-if="submitting" class="btn-spinner"></span>
-                {{ submitting ? '提交中...' : '提交报名申请' }}
+                <span class="btn-icon">✦</span>
+                {{ submitting ? '提交中...' : '提交报名' }}
               </button>
             </div>
           </form>
@@ -237,7 +171,7 @@
 </template>
 
 <script>
-import { apiGet, apiPost, isLoggedIn, isAdmin, getCurrentUser } from '../utils/api'
+import { apiGet, apiPost, isLoggedIn, getCurrentUser } from '../utils/api'
 import NotificationBell from '../components/NotificationBell.vue'
 
 export default {
@@ -248,27 +182,19 @@ export default {
   data() {
     return {
       isLoggedIn: false,
-      isAdmin: false,
-      hasRegistrations: false,
-      registrations: [],
       form: {
         name: '',
         gender: '',
-        student_id: '',
+        studentId: '',
         department: '',
-        phone: '',
-        email: '',
-        activity_ids: []
+        activity: null
       },
-      submittedActivities: [],
       errors: {
         name: '',
         gender: '',
-        student_id: '',
+        studentId: '',
         department: '',
-        phone: '',
-        email: '',
-        activity_ids: ''
+        activity: ''
       },
       departments: [
         '计算机学院',
@@ -287,26 +213,18 @@ export default {
         '教育学院',
         '体育学院'
       ],
-      availableActivities: [],
-      registeredActivityIds: [],
+      activities: [],
       submitting: false,
       submitSuccess: false
-    }
-  },
-  computed: {
-    selectedCount() {
-      return this.form.activity_ids.length
     }
   },
   mounted() {
     this.checkLoginStatus()
     this.loadActivities()
-    this.checkExistingRegistrations()
   },
   methods: {
     checkLoginStatus() {
       this.isLoggedIn = isLoggedIn()
-      this.isAdmin = isAdmin()
       if (!this.isLoggedIn) {
         this.$router.push('/login')
       }
@@ -314,37 +232,33 @@ export default {
     async loadActivities() {
       try {
         const response = await apiGet('/activities')
-        if (response.ok) {
-          this.availableActivities = await response.json()
+        if (!response.ok) {
+          if (response.status === 401) {
+            this.$router.push('/login')
+            return
+          }
+          throw new Error('获取活动列表失败')
         }
+        const data = await response.json()
+        this.activities = data.map(act => ({
+          id: act.id,
+          title: act.title,
+          description: act.description,
+          date: act.time || act.date,
+          location: act.location,
+          image_url: act.image_url,
+          category: act.category,
+          tags: act.tags ? act.tags.split(',').map(t => t.trim()) : []
+        }))
       } catch (error) {
         console.error('加载活动列表失败:', error)
+        this.activities = [
+          { id: 1, title: '社区关爱老人活动', description: '前往社区敬老院，为老人提供陪伴和帮助', date: '2024-01-15', location: '幸福社区敬老院', image_url: '', category: 'social', tags: ['关爱', '社区'] },
+          { id: 2, title: '校园环保志愿者', description: '参与校园环境整治，维护美丽校园', date: '2024-01-18', location: '校园各区域', image_url: '', category: 'social', tags: ['环保', '校园'] },
+          { id: 3, title: '图书馆整理志愿者', description: '协助图书馆进行书籍整理和分类工作', date: '2024-01-20', location: '校图书馆', image_url: '', category: 'volunteer', tags: ['图书', '整理'] },
+          { id: 4, title: '公益义卖活动', description: '参与校园公益义卖，为贫困儿童筹集善款', date: '2024-01-22', location: '校园广场', image_url: '', category: 'social', tags: ['义卖', '公益'] }
+        ]
       }
-    },
-    async checkExistingRegistrations() {
-      try {
-        const response = await apiGet('/volunteer/my-registration')
-        if (response.ok) {
-          const data = await response.json()
-          // 处理单个或多个报名记录
-          this.registrations = Array.isArray(data) ? data : [data]
-          this.hasRegistrations = this.registrations.length > 0
-          this.registeredActivityIds = this.registrations.map(r => r.activity_id)
-        }
-      } catch (error) {
-        console.log('未找到志愿者报名信息')
-      }
-    },
-    isActivityRegistered(activityId) {
-      return this.registeredActivityIds.includes(activityId)
-    },
-    getStatusText(status) {
-      const statusMap = {
-        'pending': '待审核',
-        'approved': '已通过',
-        'rejected': '已拒绝'
-      }
-      return statusMap[status] || status
     },
     validateField(field) {
       switch(field) {
@@ -364,13 +278,13 @@ export default {
             this.errors.gender = ''
           }
           break
-        case 'student_id':
-          if (!this.form.student_id) {
-            this.errors.student_id = '请输入您的学号'
-          } else if (!/^\d{8,12}$/.test(this.form.student_id.toString())) {
-            this.errors.student_id = '学号格式不正确（应为8-12位数字）'
+        case 'studentId':
+          if (!this.form.studentId) {
+            this.errors.studentId = '请输入您的学号'
+          } else if (!/^\d{8,12}$/.test(this.form.studentId.toString())) {
+            this.errors.studentId = '学号格式不正确（应为8-12位数字）'
           } else {
-            this.errors.student_id = ''
+            this.errors.studentId = ''
           }
           break
         case 'department':
@@ -380,25 +294,11 @@ export default {
             this.errors.department = ''
           }
           break
-        case 'phone':
-          if (this.form.phone && !/^1[3-9]\d{9}$/.test(this.form.phone)) {
-            this.errors.phone = '手机号格式不正确'
+        case 'activity':
+          if (!this.form.activity) {
+            this.errors.activity = '请选择一个志愿活动'
           } else {
-            this.errors.phone = ''
-          }
-          break
-        case 'email':
-          if (this.form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email)) {
-            this.errors.email = '邮箱格式不正确'
-          } else {
-            this.errors.email = ''
-          }
-          break
-        case 'activity_ids':
-          if (this.form.activity_ids.length === 0) {
-            this.errors.activity_ids = '请至少选择一个活动'
-          } else {
-            this.errors.activity_ids = ''
+            this.errors.activity = ''
           }
           break
       }
@@ -411,11 +311,9 @@ export default {
       this.errors = {
         name: '',
         gender: '',
-        student_id: '',
+        studentId: '',
         department: '',
-        phone: '',
-        email: '',
-        activity_ids: ''
+        activity: ''
       }
       
       if (!this.form.name.trim()) {
@@ -431,11 +329,11 @@ export default {
         isValid = false
       }
       
-      if (!this.form.student_id) {
-        this.errors.student_id = '请输入您的学号'
+      if (!this.form.studentId) {
+        this.errors.studentId = '请输入您的学号'
         isValid = false
-      } else if (!/^\d{8,12}$/.test(this.form.student_id.toString())) {
-        this.errors.student_id = '学号格式不正确（应为8-12位数字）'
+      } else if (!/^\d{8,12}$/.test(this.form.studentId.toString())) {
+        this.errors.studentId = '学号格式不正确（应为8-12位数字）'
         isValid = false
       }
       
@@ -444,18 +342,8 @@ export default {
         isValid = false
       }
       
-      if (this.form.phone && !/^1[3-9]\d{9}$/.test(this.form.phone)) {
-        this.errors.phone = '手机号格式不正确'
-        isValid = false
-      }
-      
-      if (this.form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email)) {
-        this.errors.email = '邮箱格式不正确'
-        isValid = false
-      }
-      
-      if (this.form.activity_ids.length === 0) {
-        this.errors.activity_ids = '请至少选择一个活动'
+      if (!this.form.activity) {
+        this.errors.activity = '请选择一个志愿活动'
         isValid = false
       }
       
@@ -471,14 +359,11 @@ export default {
       this.submitting = true
       
       try {
-        const response = await apiPost('/volunteer/register', {
+        const response = await apiPost(`/activities/${this.form.activity}/join`, {
           name: this.form.name,
           gender: this.form.gender,
-          student_id: this.form.student_id,
-          department: this.form.department,
-          phone: this.form.phone,
-          email: this.form.email,
-          activity_ids: this.form.activity_ids
+          studentId: this.form.studentId.toString(),
+          department: this.form.department
         })
         
         if (!response.ok) {
@@ -486,10 +371,6 @@ export default {
           throw new Error(data.message || '报名失败')
         }
         
-        // 获取报名成功的活动信息用于显示
-        this.submittedActivities = this.availableActivities.filter(
-          activity => this.form.activity_ids.includes(activity.id)
-        )
         this.submitSuccess = true
         
       } catch (error) {
@@ -499,47 +380,32 @@ export default {
         this.submitting = false
       }
     },
-    async cancelRegistration(registrationId) {
-      if (!confirm('确定要取消此报名吗？')) return
-      
-      try {
-        const response = await apiPost('/volunteer/cancel', { registration_id: registrationId })
-        if (response.ok) {
-          alert('报名已取消')
-          // 重新加载报名列表
-          this.checkExistingRegistrations()
-        } else {
-          const data = await response.json()
-          alert(data.message || '取消失败')
-        }
-      } catch (error) {
-        alert('网络错误，请稍后重试')
-      }
-    },
     resetForm() {
       this.form = {
         name: '',
         gender: '',
-        student_id: '',
+        studentId: '',
         department: '',
-        phone: '',
-        email: '',
-        activity_ids: []
+        activity: null
       }
-      this.errors = {
-        name: '',
-        gender: '',
-        student_id: '',
-        department: '',
-        phone: '',
-        email: '',
-        activity_ids: ''
-      }
+      this.errors = {}
       this.submitSuccess = false
-      this.submittedActivities = []
+    },
+    getCategoryText(category) {
+      const categoryMap = {
+        'sports': '体育运动',
+        'academic': '学术科技',
+        'art': '文化艺术',
+        'social': '社会实践',
+        'entertainment': '娱乐休闲',
+        'volunteer': '志愿服务',
+        'other': '其他'
+      }
+      return categoryMap[category] || category
     },
     logout() {
       localStorage.removeItem('user')
+      this.isLoggedIn = false
       this.$router.push('/login')
     }
   }
@@ -549,413 +415,236 @@ export default {
 <style scoped>
 .volunteer-recruitment {
   min-height: 100vh;
-  background-color: #f8f9fa;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%);
 }
 
-/* 导航栏样式 - 与首页保持一致 */
 .header {
-  background-color: #4CAF50;
+  background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
   color: white;
-  padding: 15px 30px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
 }
 
-.header h1 {
-  font-size: 24px;
-  margin: 0;
-}
-
-nav {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-nav a {
-  color: white;
-  text-decoration: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  transition: background-color 0.3s;
-  font-size: 14px;
-}
-
-nav a:hover {
-  background-color: rgba(255,255,255,0.2);
-}
-
-nav a.router-link-active {
-  background-color: rgba(255,255,255,0.3);
-  font-weight: 600;
-}
-
-.logout-link {
-  color: white;
-  text-decoration: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.logout-link:hover {
-  background-color: rgba(255,255,255,0.2);
-}
-
-/* 页面头部区域 */
-.page-header-section {
+.header-content {
   text-align: center;
-  padding: 40px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  margin-bottom: 15px;
 }
 
-.page-title {
+.header-content h1 {
   font-size: 32px;
-  margin: 0 0 10px 0;
-  font-weight: 600;
+  margin-bottom: 8px;
+  font-weight: 700;
 }
 
-.page-subtitle {
+.subtitle {
   font-size: 16px;
   opacity: 0.9;
-  margin: 0 0 30px 0;
 }
 
-/* 报名类型切换标签 */
-.type-tabs {
+.nav-bar {
   display: flex;
   justify-content: center;
   gap: 20px;
-  margin-top: 20px;
+  flex-wrap: wrap;
 }
 
-.tab-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px 30px;
-  background: rgba(255,255,255,0.2);
-  border-radius: 12px;
-  text-decoration: none;
+.nav-bar a, .logout-link {
   color: white;
-  transition: all 0.3s;
-  min-width: 150px;
-  border: 2px solid transparent;
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
 }
 
-.tab-item:hover {
-  background: rgba(255,255,255,0.3);
-  transform: translateY(-2px);
+.nav-bar a:hover, .logout-link:hover {
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
-.tab-item.active {
-  background: rgba(255,255,255,0.95);
-  color: #333;
-  border-color: #fff;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-}
-
-.tab-text {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.tab-desc {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-/* 表单容器 */
-.form-container {
-  max-width: 800px;
+.main-content {
+  padding: 40px 20px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 30px 20px;
+}
+
+.form-container {
+  display: flex;
+  justify-content: center;
 }
 
 .form-card {
-  background: white;
+  background-color: white;
   border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 900px;
   overflow: hidden;
 }
 
 .card-header {
-  padding: 30px;
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
   color: white;
-  text-align: center;
+  padding: 24px 30px;
 }
 
 .card-header h3 {
-  font-size: 24px;
-  margin: 0 0 8px 0;
+  font-size: 22px;
+  margin-bottom: 4px;
 }
 
 .card-header p {
-  margin: 0;
   opacity: 0.9;
   font-size: 14px;
 }
 
-/* 成功提示 */
 .success-alert {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 20px 30px;
-  background: #d4edda;
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
   border-left: 4px solid #28a745;
   margin: 20px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  position: relative;
   border-radius: 8px;
 }
 
-.success-content {
-  flex: 1;
+.success-icon-wrapper {
+  width: 50px;
+  height: 50px;
+  background-color: #28a745;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.success-icon {
+  color: white;
+  font-size: 28px;
+  font-weight: bold;
 }
 
 .success-content h4 {
-  margin: 0 0 5px 0;
   color: #155724;
+  margin-bottom: 4px;
 }
 
 .success-content p {
-  margin: 0 0 15px 0;
   color: #155724;
-  font-size: 14px;
-}
-
-.success-activities {
-  background: rgba(255,255,255,0.8);
-  padding: 15px;
-  border-radius: 8px;
-}
-
-.success-activities h5 {
-  margin: 0 0 10px 0;
-  color: #155724;
-  font-size: 14px;
-}
-
-.success-activities ul {
-  margin: 0;
-  padding-left: 20px;
-}
-
-.success-activities li {
-  color: #155724;
-  font-size: 14px;
-  margin-bottom: 5px;
+  opacity: 0.8;
 }
 
 .close-btn {
+  position: absolute;
+  top: 10px;
+  right: 15px;
   background: none;
   border: none;
-  font-size: 16px;
+  font-size: 24px;
   cursor: pointer;
   color: #155724;
-  padding: 5px 10px;
+  opacity: 0.6;
+  transition: opacity 0.3s;
 }
 
-/* 报名状态显示 */
-.registration-status {
-  padding: 30px;
+.close-btn:hover {
+  opacity: 1;
 }
 
-.registration-status h4 {
-  margin: 0 0 20px 0;
-  color: #333;
-  font-size: 18px;
-}
-
-.registrations-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.status-card {
-  padding: 20px;
-  border-radius: 12px;
-  border: 2px solid;
-}
-
-.status-card.pending {
-  background: #fff3cd;
-  border-color: #ffc107;
-}
-
-.status-card.approved {
-  background: #d4edda;
-  border-color: #28a745;
-}
-
-.status-card.rejected {
-  background: #f8d7da;
-  border-color: #dc3545;
-}
-
-.status-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.activity-title {
-  font-weight: 600;
-  color: #333;
-}
-
-.status-label {
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.status-label.pending {
-  background: #ffc107;
-  color: #333;
-}
-
-.status-label.approved {
-  background: #28a745;
-  color: white;
-}
-
-.status-label.rejected {
-  background: #dc3545;
-  color: white;
-}
-
-.registration-time {
-  margin: 0 0 10px 0;
-  font-size: 14px;
-  color: #666;
-}
-
-.admin-note {
-  margin: 10px 0;
-  padding: 10px;
-  background: rgba(0,0,0,0.05);
-  border-radius: 8px;
-  font-size: 14px;
-  color: #666;
-}
-
-.cancel-btn {
-  padding: 8px 16px;
-  background: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s;
-}
-
-.cancel-btn:hover {
-  background: #c82333;
-}
-
-/* 表单样式 */
 .volunteer-form {
   padding: 30px;
 }
 
+.volunteer-form.submitted {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
 .form-section {
   margin-bottom: 30px;
+  padding-bottom: 25px;
+  border-bottom: 1px solid #eee;
+}
+
+.form-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 .section-title {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
   margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #f0f0f0;
+}
+
+.section-icon {
+  font-size: 20px;
 }
 
 .section-title h4 {
-  margin: 0;
-  font-size: 18px;
   color: #333;
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.section-badge {
-  padding: 4px 12px;
-  background: #e3f2fd;
-  color: #1976d2;
-  border-radius: 12px;
+.section-hint {
+  margin-left: auto;
   font-size: 12px;
-  font-weight: 500;
+  color: #999;
 }
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 20px;
 }
 
 .form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group.full-width {
-  grid-column: 1 / -1;
+  position: relative;
 }
 
 .form-group label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
+  display: block;
   margin-bottom: 8px;
+  color: #555;
+  font-weight: 500;
+  font-size: 14px;
 }
 
 .required {
-  color: #f44336;
+  color: #e74c3c;
 }
 
 .form-group input,
-.form-group select,
-.form-group textarea {
+.form-group select {
+  width: 100%;
   padding: 12px 16px;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
   font-size: 14px;
-  transition: all 0.3s;
-  background: white;
+  transition: all 0.3s ease;
+  background-color: #fafafa;
 }
 
 .form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
+.form-group select:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #2ecc71;
+  background-color: white;
+  box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.1);
 }
 
 .form-group input.error,
 .form-group select.error {
-  border-color: #f44336;
-}
-
-.error-message {
-  color: #f44336;
-  font-size: 12px;
-  margin-top: 5px;
+  border-color: #e74c3c;
 }
 
 .radio-group {
   display: flex;
-  gap: 20px;
-  padding: 12px 0;
+  gap: 25px;
 }
 
 .radio-label {
@@ -963,7 +652,15 @@ nav a.router-link-active {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  font-size: 14px;
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 2px solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.radio-label:hover {
+  border-color: #2ecc71;
+  background-color: rgba(46, 204, 113, 0.05);
 }
 
 .radio-label input[type="radio"] {
@@ -973,182 +670,221 @@ nav a.router-link-active {
 .radio-custom {
   width: 20px;
   height: 20px;
-  border: 2px solid #ddd;
+  border: 2px solid #ccc;
   border-radius: 50%;
-  display: inline-block;
   position: relative;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
 }
 
 .radio-label input[type="radio"]:checked + .radio-custom {
-  border-color: #667eea;
-  background: #667eea;
+  border-color: #2ecc71;
+  background-color: #2ecc71;
 }
 
 .radio-label input[type="radio"]:checked + .radio-custom::after {
   content: '';
-  width: 8px;
-  height: 8px;
-  background: white;
-  border-radius: 50%;
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background-color: white;
+  border-radius: 50%;
 }
 
-/* 多选框组 */
-.checkbox-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-height: 300px;
-  overflow-y: auto;
+.error-message {
+  color: #e74c3c;
+  font-size: 12px;
+  margin-top: 6px;
+  display: block;
 }
 
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 15px;
-  background: #f8f9fa;
-  border-radius: 8px;
+.activity-error {
+  margin-top: 10px;
+}
+
+.activity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 15px;
+}
+
+.activity-card {
+  position: relative;
   cursor: pointer;
-  transition: all 0.3s;
-  border: 2px solid transparent;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
 }
 
-.checkbox-label:hover:not(:disabled) {
-  background: #e9ecef;
+.activity-card:hover {
+  border-color: #2ecc71;
+  box-shadow: 0 4px 15px rgba(46, 204, 113, 0.15);
+  transform: translateY(-2px);
 }
 
-.checkbox-label.checked {
-  background: #e3f2fd;
-  border-color: #667eea;
+.activity-card.selected {
+  border-color: #2ecc71;
+  background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+  box-shadow: 0 4px 15px rgba(46, 204, 113, 0.2);
 }
 
-.checkbox-label input[type="checkbox"] {
+.activity-card.error {
+  border-color: #e74c3c;
+}
+
+.activity-image {
+  width: 100%;
+  height: 160px;
+  overflow: hidden;
+}
+
+.activity-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.activity-card:hover .activity-image img {
+  transform: scale(1.05);
+}
+
+.activity-card input[type="radio"] {
   display: none;
 }
 
-.checkbox-custom {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #ddd;
-  border-radius: 4px;
-  display: inline-block;
-  position: relative;
-  flex-shrink: 0;
-  transition: all 0.3s;
-}
-
-.checkbox-label input[type="checkbox"]:checked + .checkbox-custom {
-  border-color: #667eea;
-  background: #667eea;
-}
-
-.checkbox-label input[type="checkbox"]:checked + .checkbox-custom::after {
-  content: '';
-  width: 6px;
-  height: 12px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  position: absolute;
-  top: 2px;
-  left: 6px;
-  transform: rotate(45deg);
-}
-
-.activity-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.activity-name {
-  font-weight: 500;
+.activity-content h5 {
   color: #333;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+.activity-content {
+  padding: 16px;
+}
+
+.activity-desc {
+  color: #666;
+  font-size: 13px;
+  margin-bottom: 12px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .activity-meta {
-  font-size: 13px;
-  color: #666;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
-.registered-badge {
-  padding: 4px 10px;
-  background: #e0e0e0;
-  color: #666;
-  border-radius: 12px;
+.meta-item {
+  font-size: 12px;
+  color: #888;
+}
+
+.category-tag {
+  background: #e8f5e9;
+  color: #2e7d32;
+  padding: 2px 8px;
+  border-radius: 10px;
   font-size: 12px;
 }
 
-.checkbox-label:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.activity-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-/* 表单操作按钮 */
+.tag {
+  font-size: 11px;
+  padding: 3px 8px;
+  background-color: #f0f0f0;
+  border-radius: 10px;
+  color: #666;
+}
+
+.activity-card.selected .tag {
+  background-color: rgba(46, 204, 113, 0.2);
+  color: #27ae60;
+}
+
 .form-actions {
   display: flex;
-  justify-content: flex-end;
   gap: 15px;
-  padding-top: 20px;
-  border-top: 2px solid #f0f0f0;
+  margin-top: 30px;
+  padding-top: 25px;
+  border-top: 1px solid #eee;
 }
 
 .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px 24px;
+  padding: 14px 28px;
   border: none;
   border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s;
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.btn-icon {
+  font-size: 16px;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
   color: white;
+  flex: 1;
+  box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 20px rgba(46, 204, 113, 0.4);
 }
 
 .btn-primary:disabled {
-  opacity: 0.7;
+  background-color: #ccc;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-secondary {
-  background: #f5f5f5;
+  background-color: #f5f5f5;
   color: #666;
+  border: 1px solid #ddd;
 }
 
 .btn-secondary:hover {
-  background: #e0e0e0;
+  background-color: #e8e8e8;
 }
 
 .btn-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255,255,255,0.3);
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-/* 页脚 */
 .footer {
   text-align: center;
   padding: 30px;
@@ -1156,34 +892,58 @@ nav a.router-link-active {
   font-size: 14px;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    gap: 15px;
-    padding: 15px;
-  }
-  
-  nav {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  
-  .page-title {
+  .header-content h1 {
     font-size: 24px;
   }
   
-  .type-tabs {
-    flex-direction: column;
-    align-items: center;
+  .subtitle {
+    font-size: 14px;
   }
   
-  .tab-item {
-    width: 100%;
-    max-width: 280px;
+  .nav-bar {
+    gap: 10px;
+  }
+  
+  .nav-bar a, .logout-link {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+  
+  .hero-section {
+    padding: 25px 20px;
+  }
+  
+  .hero-content h2 {
+    font-size: 22px;
+  }
+  
+  .stats-row {
+    gap: 30px;
+  }
+  
+  .stat-number {
+    font-size: 28px;
+  }
+  
+  .form-card {
+    margin: 0 10px;
+  }
+  
+  .volunteer-form {
+    padding: 20px;
   }
   
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .radio-group {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .activity-grid {
     grid-template-columns: 1fr;
   }
   
@@ -1193,13 +953,21 @@ nav a.router-link-active {
   
   .btn {
     width: 100%;
-    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-content h1 {
+    font-size: 20px;
   }
   
-  .status-header {
+  .hero-content h2 {
+    font-size: 18px;
+  }
+  
+  .stats-row {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    gap: 15px;
   }
 }
 </style>

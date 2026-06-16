@@ -181,8 +181,12 @@ export default {
   },
   mounted() {
     this.checkLoginStatus()
-    this.loadRegistrations()
     this.loadActivities()
+    // 如果路由中有 activityId 参数，自动筛选该活动
+    if (this.$route.params.activityId) {
+      this.filterActivity = parseInt(this.$route.params.activityId)
+    }
+    this.loadRegistrations()
   },
   methods: {
     checkLoginStatus() {

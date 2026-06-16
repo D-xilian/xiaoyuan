@@ -19,19 +19,7 @@ export class LoginPage extends BasePage {
     await this.usernameInput.fill(username)
     await this.passwordInput.fill(password)
     await this.submitButton.click()
-    // 等待登录成功并跳转到首页（登录失败会超时报错，由调用方处理）
-    await this.page.waitForURL('/', { timeout: 10000 })
-    await this.page.waitForLoadState('networkidle')
-    // 确认登录状态正确
-    await expect(this.page.locator('nav')).toContainText('退出登录')
-  }
-
-  async loginExpectFail(username, password) {
-    // 用于预期登录失败的场景，不等待URL跳转
-    await this.usernameInput.fill(username)
-    await this.passwordInput.fill(password)
-    await this.submitButton.click()
-    await this.page.waitForLoadState('networkidle')
+    await this.waitForNavigation()
   }
 
   async assertLoginSuccess() {

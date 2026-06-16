@@ -64,11 +64,6 @@ test.describe('活动报名功能测试', () => {
 
       test.skip(!activityOption, '没有可报名的活动')
 
-      // 注册 dialog handler 处理 API 错误时的 alert
-      page.on('dialog', async (dialog) => {
-        await dialog.accept()
-      })
-
       await registrationPage.goto(activityOption.id)
       await registrationPage.fillRegistrationForm(REGISTRATION)
       await registrationPage.agreeTerms()

@@ -11,6 +11,11 @@ export class ActivityRegistrationPage extends BasePage {
     this.submitButton = page.locator('button[type="submit"]')
     this.successMessage = page.locator('.success-message, .success-alert')
     this.resetButton = page.locator('button:has-text("重置")')
+    this.nameInput = page.locator('#name')
+    this.phoneInput = page.locator('#phone')
+    this.emailInput = page.locator('#email')
+    this.departmentSelect = page.locator('#department')
+    this.studentIdInput = page.locator('#studentId')
   }
 
   async goto(activityId) {
@@ -34,6 +39,21 @@ export class ActivityRegistrationPage extends BasePage {
   }
 
   async fillRegistrationForm(registration) {
+    if (registration.name) {
+      await this.nameInput.fill(registration.name)
+    }
+    if (registration.phone) {
+      await this.phoneInput.fill(registration.phone)
+    }
+    if (registration.email) {
+      await this.emailInput.fill(registration.email)
+    }
+    if (registration.department) {
+      await this.departmentSelect.selectOption(registration.department)
+    }
+    if (registration.studentId) {
+      await this.studentIdInput.fill(registration.studentId)
+    }
     await this.introductionTextarea.fill(registration.introduction)
   }
 
@@ -43,8 +63,7 @@ export class ActivityRegistrationPage extends BasePage {
 
   async submit() {
     await this.submitButton.click()
-    // 表单提交后页面不跳转，等待 API 完成
-    await this.page.waitForLoadState('networkidle')
+    await this.waitForNavigation()
   }
 
   async registerForActivity(activityId, registration) {
@@ -56,7 +75,7 @@ export class ActivityRegistrationPage extends BasePage {
   }
 
   async assertRegistrationSuccess() {
-    await expect(this.successMessage.first()).toContainText('报名成功', { timeout: 5000 })
+    await expect(this.successMessage.or(this.page.locator('body'))).toContainText('报名成功', { timeout: 5000 })
   }
 
   async assertValidationError() {

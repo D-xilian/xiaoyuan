@@ -1,14 +1,14 @@
 export const USERS = {
   admin: {
-    username: 'dzr',
-    password: '123456',
-    email: '1217114890@qq.com',
+    username: 'admin',
+    password: 'admin123',
+    email: 'admin@campus.com',
     role: 'admin',
   },
   user: {
-    username: 'xzh',
-    password: '234567',
-    email: '2944476443@qq.com',
+    username: 'testuser',
+    password: 'test123',
+    email: 'testuser@campus.com',
     role: 'user',
   },
   newUser: {

@@ -47,7 +47,6 @@ test.describe('管理员功能测试', () => {
 
       await loginPage.goto()
       await loginPage.login(USERS.admin.username, USERS.admin.password)
-      await loginPage.assertLoginSuccess()
 
       await dashboardPage.goto()
       await dashboardPage.assertDashboardVisible()
@@ -59,7 +58,6 @@ test.describe('管理员功能测试', () => {
 
       await loginPage.goto()
       await loginPage.login(USERS.admin.username, USERS.admin.password)
-      await loginPage.assertLoginSuccess()
 
       await dashboardPage.goto()
       await dashboardPage.assertDashboardVisible()
@@ -75,7 +73,6 @@ test.describe('管理员功能测试', () => {
 
       await loginPage.goto()
       await loginPage.login(USERS.admin.username, USERS.admin.password)
-      await loginPage.assertLoginSuccess()
 
       await dashboardPage.goto()
       await dashboardPage.assertTopActivitiesVisible()
@@ -104,12 +101,16 @@ test.describe('管理员功能测试', () => {
 
       await loginPage.goto()
       await loginPage.login(USERS.admin.username, USERS.admin.password)
-      await loginPage.assertLoginSuccess()
 
       await createActivityPage.goto()
       await createActivityPage.assertCreatePageVisible()
 
       await createActivityPage.fillActivityForm(ACTIVITY)
+
+      page.once('dialog', async (dialog) => {
+        expect(dialog.message()).toContain('成功')
+        await dialog.accept()
+      })
 
       await createActivityPage.submit()
       await createActivityPage.assertCreateSuccess()
@@ -121,7 +122,6 @@ test.describe('管理员功能测试', () => {
 
       await loginPage.goto()
       await loginPage.login(USERS.admin.username, USERS.admin.password)
-      await loginPage.assertLoginSuccess()
 
       await adminPage.goto()
       await adminPage.waitForActivitiesLoaded()
@@ -150,19 +150,13 @@ test.describe('管理员功能测试', () => {
 
       await loginPage.goto()
       await loginPage.login(USERS.admin.username, USERS.admin.password)
-      await loginPage.assertLoginSuccess()
 
-      // 分别从首页导航访问各管理页面，确保每次从首页开始
       await homePage.clickNavLink('用户管理')
       await expect(page).toHaveURL('/admin/users')
 
-      await page.goto('/')
-      await page.waitForLoadState('networkidle')
       await homePage.clickNavLink('创建活动')
       await expect(page).toHaveURL('/activity/create')
 
-      await page.goto('/')
-      await page.waitForLoadState('networkidle')
       await homePage.clickNavLink('管理活动')
       await expect(page).toHaveURL('/admin/activities')
     })

@@ -66,9 +66,9 @@ test.describe('用户认证测试', () => {
       const loginPage = new LoginPage(page)
       await loginPage.goto()
 
-      await loginPage.loginExpectFail(USERS.admin.username, 'wrongpassword')
+      await loginPage.login('admin', 'wrongpassword')
 
-      await loginPage.assertLoginError('用户名或密码错误')
+      await loginPage.assertLoginError('登录失败')
     })
 
     test('登录后应能正确退出', async ({ page }) => {

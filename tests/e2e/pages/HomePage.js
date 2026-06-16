@@ -54,14 +54,12 @@ export class HomePage extends BasePage {
   }
 
   async assertLoggedOut() {
-    // 退出登录后会跳转到 /login，Login 页面无 nav 元素
-    // 改检查 body 中是否包含登录/注册链接
-    await expect(this.page.locator('body')).toContainText('登录')
-    await expect(this.page.locator('body')).toContainText('注册')
+    await expect(this.page.locator('nav')).toContainText('登录')
+    await expect(this.page.locator('nav')).toContainText('注册')
   }
 
   async logout() {
     await this.page.locator('a:has-text("退出登录")').click()
-    await this.page.waitForURL(/\/login/, { timeout: 5000 })
+    await this.waitForNavigation()
   }
 }

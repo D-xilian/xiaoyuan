@@ -38,13 +38,12 @@ test.describe('活动管理功能测试', () => {
       await loginPage.goto()
       await loginPage.login(USERS.user.username, USERS.user.password)
 
-      // 先注册 dialog handler，再导航（CreateActivity.vue 的 mounted 中会立即弹出 alert）
+      await page.goto('/activity/create')
+
       page.on('dialog', async (dialog) => {
         expect(dialog.message()).toContain('无权限')
         await dialog.accept()
       })
-
-      await page.goto('/activity/create')
 
       await expect(page).toHaveURL('/')
     })

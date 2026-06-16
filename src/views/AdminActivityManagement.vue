@@ -1,5 +1,6 @@
 <template>
   <div class="admin-activities">
+    
     <main class="main">
       <div class="page-header">
         <h2>活动管理</h2>

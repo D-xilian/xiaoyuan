@@ -37,5 +37,5 @@ uploads/
 # Build output
 dist/
 
-# Playwright test results
+# Playwright test output
 test-results/
