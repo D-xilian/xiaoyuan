@@ -66,3 +66,4 @@
 - 前端：Vue 3 + Vue Router
 - 后端：Flask + SQLAlchemy
 - 数据库：SQLite
+#npm run test:ui

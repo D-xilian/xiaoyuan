@@ -9,7 +9,7 @@ export async function loginAsUser(page, username, password) {
 }
 
 export async function loginAsAdmin(page) {
-  await loginAsUser(page, 'admin', 'admin123')
+  await loginAsUser(page, 'dzr', '123456')
 }
 
 export async function logout(page) {

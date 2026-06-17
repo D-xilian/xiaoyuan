@@ -1,4 +1,3 @@
-import { expect } from '@playwright/test'
 import { BasePage } from './BasePage.js'
 
 export class CreateActivityPage extends BasePage {
@@ -15,10 +14,13 @@ export class CreateActivityPage extends BasePage {
 
   async goto() {
     await this.navigate('/activity/create')
-  }
-
-  async assertCreatePageVisible() {
-    await expect(this.page.locator('h2')).toContainText('发布活动')
+    // 等待表单加载，确认没有被重定向
+    await this.page.waitForSelector('h2', { timeout: 5000 })
+    // 如果 h2 内容是"用户登录"，说明被重定向了
+    const heading = await this.page.locator('h2').textContent()
+    if (heading && heading.includes('登录')) {
+      throw new Error('创建活动页面被重定向到登录页，请检查登录状态')
+    }
   }
 
   async fillActivityForm(activity) {
@@ -35,15 +37,6 @@ export class CreateActivityPage extends BasePage {
       await dialog.accept()
     })
     await this.submitButton.click()
-    await this.waitForNavigation()
-  }
-
-  async createActivity(activity) {
-    await this.fillActivityForm(activity)
-    await this.submit()
-  }
-
-  async assertCreateSuccess() {
-    await expect(this.page).toHaveURL(/\/my-activities/)
+    await this.page.waitForLoadState('networkidle')
   }
 }

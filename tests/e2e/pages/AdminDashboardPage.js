@@ -6,11 +6,6 @@ export class AdminDashboardPage extends BasePage {
     super(page)
     this.pageTitle = page.locator('h2')
     this.statCards = page.locator('.stat-card')
-    this.refreshButton = page.locator('button:has-text("刷新数据")')
-    this.activityTable = page.locator('.data-table').first()
-    this.volunteerTable = page.locator('.data-table').nth(1)
-    this.barChart = page.locator('.bar-chart')
-    this.pieChart = page.locator('.pie-chart')
   }
 
   async goto() {
@@ -31,19 +26,5 @@ export class AdminDashboardPage extends BasePage {
       values.push({ label, value })
     }
     return values
-  }
-
-  async getTotalActivities() {
-    const text = await this.statCards.first().locator('.stat-value').textContent()
-    return parseInt(text || '0', 10)
-  }
-
-  async clickRefresh() {
-    await this.refreshButton.click()
-    await this.waitForNavigation()
-  }
-
-  async assertTopActivitiesVisible() {
-    await expect(this.activityTable).toBeVisible()
   }
 }
